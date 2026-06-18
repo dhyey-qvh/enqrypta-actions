@@ -13,6 +13,14 @@ inputs:
     description: SHA-256 for the pinned Linux x86_64 Opengrep binary.
     required: false
     default: "45bcd58440e397ed52c50e953ccf5948909ea77087c9186fc7d277216f62e319"
+  notify-on-complete:
+    description: Send an EnQrypta scan-complete email after successful ingest.
+    required: false
+    default: "false"
+  notification-email:
+    description: Recipient for scan-complete email when notify-on-complete is true.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -56,6 +64,8 @@ runs:
       env:
         ENQRYPTA_API_URL: ${{ inputs.api-url }}
         ENQRYPTA_OIDC_AUDIENCE: enqrypta-api
+        ENQRYPTA_NOTIFY_ON_COMPLETE: ${{ inputs.notify-on-complete }}
+        ENQRYPTA_NOTIFICATION_EMAIL: ${{ inputs.notification-email }}
       run: |
         python "${{ github.action_path }}/scripts/publish.py" \
           --input .enqrypta/enqrypta-findings.json

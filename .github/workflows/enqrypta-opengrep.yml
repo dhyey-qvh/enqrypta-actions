@@ -6,12 +6,30 @@ on:
       api-url:
         required: true
         type: string
+      notify-on-complete:
+        required: false
+        type: boolean
+        default: false
+      notification-email:
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       api-url:
         description: EnQrypta operational API base URL
         required: true
         type: string
+      notify-on-complete:
+        description: Send scan-complete email after successful ingest
+        required: false
+        type: boolean
+        default: false
+      notification-email:
+        description: Recipient for scan-complete email
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -25,9 +43,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: dhyey-qvh/enqrypta-actions/.github/actions/enqrypta-opengrep@enqrypta-opengrep-workflow-v1
+      - uses: qvh-inc/ai-monorepo/.github/actions/enqrypta-opengrep@enqrypta-opengrep-workflow-v1
         with:
           api-url: ${{ inputs.api-url }}
+          notify-on-complete: ${{ inputs.notify-on-complete }}
+          notification-email: ${{ inputs.notification-email }}
 
       - name: Retain raw and normalized scan outputs
         if: always()

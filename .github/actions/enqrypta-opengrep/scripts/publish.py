@@ -26,7 +26,12 @@ def main() -> None:
     parser.add_argument("--input", required=True)
     args = parser.parse_args()
 
-    payload = Path(args.input).read_bytes()
+    data = json.loads(Path(args.input).read_text())
+    notify = os.environ.get("ENQRYPTA_NOTIFY_ON_COMPLETE", "").lower() in {"1", "true", "yes", "on"}
+    if notify:
+        data["notify_on_complete"] = True
+        data["notification_email"] = os.environ.get("ENQRYPTA_NOTIFICATION_EMAIL", "")
+    payload = json.dumps(data, separators=(",", ":")).encode()
     token = request_oidc_token()
     url = f"{os.environ['ENQRYPTA_API_URL'].rstrip('/')}/api/v1/agent/asset/repos/scans/opengrep"
     request = urllib.request.Request(
