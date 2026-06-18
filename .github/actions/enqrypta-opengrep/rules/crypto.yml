@@ -1,0 +1,156 @@
+rules:
+  - id: enqrypta.crypto.rsa
+    languages: [generic]
+    message: RSA usage requires PQC migration review.
+    severity: WARNING
+    pattern-regex: (?i)\bRSA(?:[-_ ]?(?:1024|2048|3072|4096))?\b
+    metadata:
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      quantum_risk: high
+      target_algorithm: ML-KEM-768
+      confidence: 0.75
+
+  - id: enqrypta.crypto.ecdsa
+    languages: [generic]
+    message: ECDSA usage requires PQC signature migration review.
+    severity: WARNING
+    pattern-regex: (?i)\bECDSA\b
+    metadata:
+      algorithm: ECDSA
+      primitive: signature
+      usage: signing
+      quantum_risk: high
+      target_algorithm: ML-DSA-65
+      confidence: 0.9
+
+  - id: enqrypta.crypto.ecdh
+    languages: [generic]
+    message: ECDH usage requires PQC key-establishment migration review.
+    severity: WARNING
+    pattern-regex: (?i)\bECDH\b
+    metadata:
+      algorithm: ECDH
+      primitive: key_establishment
+      usage: key_establishment
+      quantum_risk: high
+      target_algorithm: ML-KEM-768
+      confidence: 0.9
+
+  - id: enqrypta.crypto.sha1
+    languages: [generic]
+    message: SHA-1 is deprecated and requires replacement.
+    severity: ERROR
+    pattern-regex: (?i)\bSHA[-_ ]?1\b
+    metadata:
+      algorithm: SHA-1
+      primitive: hash
+      usage: hash
+      quantum_risk: critical
+      target_algorithm: SHA-256
+      confidence: 0.9
+
+  - id: enqrypta.crypto.md5
+    languages: [generic]
+    message: MD5 is deprecated and requires replacement.
+    severity: ERROR
+    pattern-regex: (?i)\bMD5\b
+    metadata:
+      algorithm: MD5
+      primitive: hash
+      usage: hash
+      quantum_risk: critical
+      target_algorithm: SHA-256
+      confidence: 0.9
+
+  - id: enqrypta.crypto.aes
+    languages: [generic]
+    message: AES usage inventoried for PQC migration analysis.
+    severity: INFO
+    pattern-regex: (?i)\bAES(?:[-_ ]?(?:128|192|256))?\b
+    metadata:
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      quantum_risk: low
+      target_algorithm: none
+      confidence: 0.75
+
+  - id: enqrypta.crypto.ml-kem
+    languages: [generic]
+    message: ML-KEM usage inventoried as post-quantum key establishment.
+    severity: INFO
+    pattern-regex: (?i)\bML[-_ ]?KEM(?:[-_ ]?(?:512|768|1024))?\b
+    metadata:
+      algorithm: ML-KEM
+      primitive: key_establishment
+      usage: key_establishment
+      quantum_risk: low
+      target_algorithm: none
+      confidence: 0.9
+
+  - id: enqrypta.crypto.ml-dsa
+    languages: [generic]
+    message: ML-DSA usage inventoried as a post-quantum signature.
+    severity: INFO
+    pattern-regex: (?i)\bML[-_ ]?DSA(?:[-_ ]?(?:44|65|87))?\b
+    metadata:
+      algorithm: ML-DSA
+      primitive: signature
+      usage: signing
+      quantum_risk: low
+      target_algorithm: none
+      confidence: 0.9
+
+  - id: enqrypta.crypto.classical-key-establishment
+    languages: [generic]
+    message: Classical key-establishment usage requires PQC migration review.
+    severity: WARNING
+    pattern-regex: (?i)\b(?:DH|X25519|X448|prime256v1|secp384r1|secp521r1|SM2)\b
+    metadata:
+      algorithm: ECDH
+      primitive: key_establishment
+      usage: key_establishment
+      quantum_risk: high
+      target_algorithm: ML-KEM-768
+      confidence: 0.8
+
+  - id: enqrypta.crypto.classical-signature
+    languages: [generic]
+    message: Classical signature usage requires PQC migration review.
+    severity: WARNING
+    pattern-regex: (?i)\b(?:Ed25519|Ed448|secp256k1|prime256v1Sig|secp384r1Sig|secp521r1Sig|SM2Sig)\b
+    metadata:
+      algorithm: ECDSA
+      primitive: signature
+      usage: signing
+      quantum_risk: high
+      target_algorithm: ML-DSA-65
+      confidence: 0.8
+
+  - id: enqrypta.crypto.pqc-kem-catalog
+    languages: [generic]
+    message: Post-quantum KEM usage inventoried.
+    severity: INFO
+    pattern-regex: (?i)\b(?:BIKE[-_ ]?L[135]|ClassicMcEliece\w+|FrodoKEM\w+|HQC[-_ ]?(?:128|192|256)|Kyber[-_ ]?(?:512|768|1024)|NtruPrimeSntrup761|sntrup761)\b
+    metadata:
+      algorithm: PQC-KEM
+      primitive: key_establishment
+      usage: key_establishment
+      quantum_risk: low
+      target_algorithm: none
+      confidence: 0.85
+
+  - id: enqrypta.crypto.pqc-signature-catalog
+    languages: [generic]
+    message: Post-quantum signature usage inventoried.
+    severity: INFO
+    pattern-regex: (?i)\b(?:CROSS\w+|Dilithium[235]|Falcon(?:512|1024)|Mayo[1235]|SPHINCS\w+|UOV\w+)\b
+    metadata:
+      algorithm: PQC-SIGNATURE
+      primitive: signature
+      usage: signing
+      quantum_risk: low
+      target_algorithm: none
+      confidence: 0.85
