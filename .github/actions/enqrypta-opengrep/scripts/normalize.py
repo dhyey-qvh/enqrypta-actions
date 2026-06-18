@@ -16,7 +16,7 @@ REQUIRED_METADATA = {
     "confidence",
 }
 SEVERITY = {"ERROR": "high", "WARNING": "med", "INFO": "low"}
-GENERIC_ALGORITHMS = {"RSA", "ECDH", "ECDSA", "PQC-KEM", "PQC-SIGNATURE"}
+GENERIC_ALGORITHMS = {"PQC-KEM", "PQC-SIGNATURE"}
 EXACT_ALGORITHM_PATTERN = re.compile(
     r"(?i)\b(?:"
     r"RSA[-_ ]?(?:1024|2048|3072|4096)|"
