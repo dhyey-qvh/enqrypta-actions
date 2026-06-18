@@ -1,0 +1,39 @@
+name: EnQrypta Opengrep Scan
+
+on:
+  workflow_call:
+    inputs:
+      api-url:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      api-url:
+        description: EnQrypta operational API base URL
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/enqrypta-opengrep
+        with:
+          api-url: ${{ inputs.api-url }}
+
+      - name: Retain raw and normalized scan outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enqrypta-opengrep-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .enqrypta/
+          if-no-files-found: warn
+          retention-days: 30

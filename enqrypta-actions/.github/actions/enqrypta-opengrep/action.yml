@@ -1,0 +1,61 @@
+name: EnQrypta Opengrep Scan
+description: Scan a checked-out repository and publish normalized crypto findings to EnQrypta.
+
+inputs:
+  api-url:
+    description: EnQrypta operational API base URL.
+    required: true
+  opengrep-version:
+    description: Pinned Opengrep release version.
+    required: false
+    default: "1.22.0"
+  opengrep-sha256:
+    description: SHA-256 for the pinned Linux x86_64 Opengrep binary.
+    required: false
+    default: "45bcd58440e397ed52c50e953ccf5948909ea77087c9186fc7d277216f62e319"
+
+runs:
+  using: composite
+  steps:
+    - name: Install pinned Opengrep
+      shell: bash
+      env:
+        OPENGREP_VERSION: ${{ inputs.opengrep-version }}
+        OPENGREP_SHA256: ${{ inputs.opengrep-sha256 }}
+      run: |
+        set -euo pipefail
+        mkdir -p .enqrypta/bin
+        curl --fail --location --silent --show-error \
+          "https://github.com/opengrep/opengrep/releases/download/v${OPENGREP_VERSION}/opengrep_manylinux_x86" \
+          --output .enqrypta/bin/opengrep
+        echo "${OPENGREP_SHA256}  .enqrypta/bin/opengrep" | sha256sum --check -
+        chmod +x .enqrypta/bin/opengrep
+
+    - name: Run EnQrypta crypto rules
+      shell: bash
+      run: |
+        set -euo pipefail
+        .enqrypta/bin/opengrep scan \
+          --config "${{ github.action_path }}/rules/crypto.yml" \
+          --json-output .enqrypta/opengrep.json \
+          --sarif-output .enqrypta/opengrep.sarif \
+          "${GITHUB_WORKSPACE}"
+
+    - name: Normalize findings
+      shell: bash
+      env:
+        OPENGREP_VERSION: ${{ inputs.opengrep-version }}
+      run: |
+        python "${{ github.action_path }}/scripts/normalize.py" \
+          --input .enqrypta/opengrep.json \
+          --output .enqrypta/enqrypta-findings.json \
+          --scanner-version "${OPENGREP_VERSION}"
+
+    - name: Publish normalized findings
+      shell: bash
+      env:
+        ENQRYPTA_API_URL: ${{ inputs.api-url }}
+        ENQRYPTA_OIDC_AUDIENCE: enqrypta-api
+      run: |
+        python "${{ github.action_path }}/scripts/publish.py" \
+          --input .enqrypta/enqrypta-findings.json
