@@ -10,9 +10,29 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+USER_AGENT = "EnQrypta-OpenGrep-GitHubAction/1.0"
+
 
 def _error_body(exc: urllib.error.HTTPError) -> str:
     return exc.read().decode(errors="replace").strip()
+
+
+def _print_error_context(exc: urllib.error.HTTPError) -> None:
+    for header in (
+        "server",
+        "cf-ray",
+        "cf-cache-status",
+        "content-type",
+        "x-request-id",
+        "x-correlation-id",
+    ):
+        value = exc.headers.get(header)
+        if value:
+            print(f"{header}: {value}", file=sys.stderr)
+
+    body = _error_body(exc)
+    if body:
+        print(body, file=sys.stderr)
 
 
 def request_oidc_token() -> str:
@@ -21,16 +41,19 @@ def request_oidc_token() -> str:
     audience = urllib.parse.quote(os.environ["ENQRYPTA_OIDC_AUDIENCE"], safe="")
     request = urllib.request.Request(
         f"{url}{separator}audience={audience}",
-        headers={"Authorization": f"Bearer {os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']}"},
+        headers={
+            "Authorization": f"Bearer {os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']}",
+            "Accept": "application/json",
+            "User-Agent": USER_AGENT,
+        },
     )
+
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.load(response)["value"]
     except urllib.error.HTTPError as exc:
         print(f"GitHub OIDC token request failed: HTTP {exc.code} {exc.reason}", file=sys.stderr)
-        body = _error_body(exc)
-        if body:
-            print(body, file=sys.stderr)
+        _print_error_context(exc)
         raise
 
 
@@ -55,6 +78,9 @@ def main() -> None:
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": USER_AGENT,
+            "Content-Length": str(len(payload)),
         },
     )
 
@@ -65,9 +91,7 @@ def main() -> None:
         print(f"EnQrypta API publish failed: HTTP {exc.code} {exc.reason}", file=sys.stderr)
         print(f"URL: {url}", file=sys.stderr)
         print(f"Findings: {len(data.get('findings', []))}", file=sys.stderr)
-        body = _error_body(exc)
-        if body:
-            print(body, file=sys.stderr)
+        _print_error_context(exc)
         raise
 
 
