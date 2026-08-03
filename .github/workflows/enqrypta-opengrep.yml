@@ -14,6 +14,10 @@ on:
         required: false
         type: string
         default: ""
+      nightly-job-task-id:
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       api-url:
@@ -30,6 +34,11 @@ on:
         required: false
         type: string
         default: ""
+      nightly-job-task-id:
+        description: Opaque EnQrypta nightly task identifier
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -43,11 +52,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: dhyey-qvh/enqrypta-actions/.github/actions/enqrypta-opengrep@enqrypta-opengrep-workflow-v1
+      - uses: dhyey-qvh/enqrypta-actions/.github/actions/enqrypta-opengrep@enqrypta-opengrep-workflow-v2
         with:
           api-url: ${{ inputs.api-url }}
           notify-on-complete: ${{ inputs.notify-on-complete }}
           notification-email: ${{ inputs.notification-email }}
+          nightly-job-task-id: ${{ inputs.nightly-job-task-id }}
 
       - name: Retain raw and normalized scan outputs
         if: always()

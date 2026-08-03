@@ -21,6 +21,10 @@ inputs:
     description: Recipient for scan-complete email when notify-on-complete is true.
     required: false
     default: ""
+  nightly-job-task-id:
+    description: Opaque EnQrypta nightly task identifier.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -66,6 +70,7 @@ runs:
         ENQRYPTA_OIDC_AUDIENCE: enqrypta-api
         ENQRYPTA_NOTIFY_ON_COMPLETE: ${{ inputs.notify-on-complete }}
         ENQRYPTA_NOTIFICATION_EMAIL: ${{ inputs.notification-email }}
+        ENQRYPTA_NIGHTLY_JOB_TASK_ID: ${{ inputs.nightly-job-task-id }}
       run: |
         python "${{ github.action_path }}/scripts/publish.py" \
           --input .enqrypta/enqrypta-findings.json

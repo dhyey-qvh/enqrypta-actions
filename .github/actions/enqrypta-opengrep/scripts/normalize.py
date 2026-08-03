@@ -16,7 +16,7 @@ REQUIRED_METADATA = {
     "confidence",
 }
 SEVERITY = {"ERROR": "high", "WARNING": "med", "INFO": "low"}
-GENERIC_ALGORITHMS = {"PQC-KEM", "PQC-SIGNATURE"}
+GENERIC_ALGORITHMS = {"RSA", "ECDH", "ECDSA", "PQC-KEM", "PQC-SIGNATURE"}
 EXACT_ALGORITHM_PATTERN = re.compile(
     r"(?i)\b(?:"
     r"RSA[-_ ]?(?:1024|2048|3072|4096)|"
@@ -30,6 +30,17 @@ EXACT_ALGORITHM_PATTERN = re.compile(
     r"CROSS\w+|Dilithium[235]|Falcon(?:512|1024)|Mayo[1235]|SPHINCS\w+|UOV\w+"
     r")\b"
 )
+KEY_SIZE_PATTERN = re.compile(r"(?i)^(?:RSA|AES)[-_ ]?(\d+)$")
+GROUP_ORDER_BITS = {
+    "PRIME256V1": 256,
+    "SECP256K1": 256,
+    "SECP384R1": 384,
+    "SECP521R1": 521,
+    "X25519": 252,
+    "X448": 446,
+    "ED25519": 252,
+    "ED448": 446,
+}
 
 
 def fingerprint(finding: dict) -> str:
@@ -73,6 +84,19 @@ def normalize_result(result: dict) -> dict:
         "target_algorithm": str(metadata["target_algorithm"]),
         "confidence": float(metadata["confidence"]),
     }
+    evidence = {
+        "parameter_set": algorithm,
+        "cryptographic_role": str(metadata["primitive"]),
+    }
+    key_size = KEY_SIZE_PATTERN.match(algorithm)
+    if key_size:
+        evidence["key_size_bits"] = int(key_size.group(1))
+    group_order = GROUP_ORDER_BITS.get(
+        algorithm.upper().replace("_", "").replace("-", "")
+    )
+    if group_order:
+        evidence["group_order_bits"] = group_order
+    finding["assessment_evidence"] = evidence
     finding["fingerprint"] = fingerprint(finding)
     return finding
 

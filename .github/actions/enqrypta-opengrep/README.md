@@ -8,15 +8,18 @@ as GitHub Actions artifacts.
 ## Onboarding A Demo Repository
 
 1. Register the public repository through `POST /api/v1/agent/asset/repos`.
-2. Publish an immutable `enqrypta-opengrep-workflow-v1` tag for this monorepo.
-3. Configure the API with the exact reusable-workflow ref and commit SHA:
+2. Publish an immutable `enqrypta-opengrep-workflow-v2` tag for this monorepo.
+3. Mirror `.github/workflows/enqrypta-opengrep.yml` to
+   `dhyey-qvh/enqrypta-actions` and publish the same immutable tag there.
+4. Configure the API with the exact public reusable-workflow ref and its commit SHA:
 
 ```text
-GITHUB_OIDC_TRUSTED_WORKFLOW_REF=qvh-inc/ai-monorepo/.github/workflows/enqrypta-opengrep.yml@refs/tags/enqrypta-opengrep-workflow-v1
+GITHUB_APP_WORKFLOW_REF=dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v2
+GITHUB_OIDC_TRUSTED_WORKFLOW_REF=dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@refs/tags/enqrypta-opengrep-workflow-v2
 GITHUB_OIDC_TRUSTED_WORKFLOW_SHA=<40-character-commit-sha>
 ```
 
-4. Add this workflow to the demo repository:
+5. Add this workflow to the demo repository:
 
 ```yaml
 name: EnQrypta Crypto Scan
@@ -30,7 +33,7 @@ permissions:
 
 jobs:
   scan:
-    uses: qvh-inc/ai-monorepo/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v1
+    uses: dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v2
     with:
       api-url: https://api.enqrypta.example
 ```
