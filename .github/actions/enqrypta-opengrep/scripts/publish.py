@@ -45,7 +45,12 @@ def main() -> None:
         method="POST",
         headers={
             "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
             "Content-Type": "application/json",
+            "User-Agent": (
+                "Mozilla/5.0 (compatible; EnQrypta-GitHub-Action/1.0; "
+                "+https://github.com/dhyey-qvh/enqrypta-actions)"
+            ),
         },
     )
     try:
