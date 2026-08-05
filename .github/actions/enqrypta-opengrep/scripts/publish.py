@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -46,8 +48,16 @@ def main() -> None:
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        print(response.read().decode())
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            print(response.read().decode())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode(errors="replace")
+        request_id = exc.headers.get("x-request-id") or exc.headers.get("cf-ray")
+        print(f"EnQrypta API request failed: HTTP {exc.code} {exc.reason}", file=sys.stderr)
+        print(f"Response: {body or '<empty>'}", file=sys.stderr)
+        print(f"Request ID: {request_id or '<none>'}", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
