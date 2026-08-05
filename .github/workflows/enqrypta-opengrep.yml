@@ -52,7 +52,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: dhyey-qvh/enqrypta-actions/.github/actions/enqrypta-opengrep@enqrypta-opengrep-workflow-v4
+      - uses: dhyey-qvh/enqrypta-actions/.github/actions/enqrypta-opengrep@enqrypta-opengrep-workflow-v5
         with:
           api-url: ${{ inputs.api-url }}
           notify-on-complete: ${{ inputs.notify-on-complete }}

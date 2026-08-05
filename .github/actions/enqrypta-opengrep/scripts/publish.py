@@ -48,7 +48,7 @@ def main() -> None:
             "Accept": "application/json",
             "Content-Type": "application/json",
             "User-Agent": (
-                "Mozilla/5.0 (compatible; EnQrypta-GitHub-Action/1.0; "
+                "Mozilla/5.0 (compatible; EnQrypta-GitHub-Action/5.0; "
                 "+https://github.com/dhyey-qvh/enqrypta-actions)"
             ),
         },

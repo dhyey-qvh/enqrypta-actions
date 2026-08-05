@@ -5,11 +5,10 @@ rules:
     severity: WARNING
     pattern-regex: (?i)\bRSA(?:[-_ ]?(?:1024|2048|3072|4096))?\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.rsa
       algorithm: RSA
       primitive: asymmetric
       usage: encryption
-      quantum_risk: high
-      target_algorithm: ML-KEM-768
       confidence: 0.75
 
   - id: enqrypta.crypto.ecdsa
@@ -18,11 +17,10 @@ rules:
     severity: WARNING
     pattern-regex: (?i)\bECDSA\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.ecdsa
       algorithm: ECDSA
       primitive: signature
       usage: signing
-      quantum_risk: high
-      target_algorithm: ML-DSA-65
       confidence: 0.9
 
   - id: enqrypta.crypto.ecdh
@@ -31,11 +29,10 @@ rules:
     severity: WARNING
     pattern-regex: (?i)\bECDH\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.ecdh
       algorithm: ECDH
       primitive: key_establishment
       usage: key_establishment
-      quantum_risk: high
-      target_algorithm: ML-KEM-768
       confidence: 0.9
 
   - id: enqrypta.crypto.sha1
@@ -44,11 +41,10 @@ rules:
     severity: ERROR
     pattern-regex: (?i)\bSHA[-_ ]?1\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.sha1
       algorithm: SHA-1
       primitive: hash
       usage: hash
-      quantum_risk: critical
-      target_algorithm: SHA-256
       confidence: 0.9
 
   - id: enqrypta.crypto.md5
@@ -57,11 +53,10 @@ rules:
     severity: ERROR
     pattern-regex: (?i)\bMD5\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.md5
       algorithm: MD5
       primitive: hash
       usage: hash
-      quantum_risk: critical
-      target_algorithm: SHA-256
       confidence: 0.9
 
   - id: enqrypta.crypto.aes
@@ -70,11 +65,10 @@ rules:
     severity: INFO
     pattern-regex: (?i)\bAES(?:[-_ ]?(?:128|192|256))?\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.aes
       algorithm: AES
       primitive: symmetric
       usage: encryption
-      quantum_risk: low
-      target_algorithm: none
       confidence: 0.75
 
   - id: enqrypta.crypto.ml-kem
@@ -83,11 +77,10 @@ rules:
     severity: INFO
     pattern-regex: (?i)\bML[-_ ]?KEM(?:[-_ ]?(?:512|768|1024))?\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.ml-kem
       algorithm: ML-KEM
       primitive: key_establishment
       usage: key_establishment
-      quantum_risk: low
-      target_algorithm: none
       confidence: 0.9
 
   - id: enqrypta.crypto.ml-dsa
@@ -96,11 +89,10 @@ rules:
     severity: INFO
     pattern-regex: (?i)\bML[-_ ]?DSA(?:[-_ ]?(?:44|65|87))?\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.ml-dsa
       algorithm: ML-DSA
       primitive: signature
       usage: signing
-      quantum_risk: low
-      target_algorithm: none
       confidence: 0.9
 
   - id: enqrypta.crypto.classical-key-establishment
@@ -109,11 +101,10 @@ rules:
     severity: WARNING
     pattern-regex: (?i)\b(?:DH|X25519|X448|prime256v1|secp384r1|secp521r1|SM2)\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.classical-key-establishment
       algorithm: ECDH
       primitive: key_establishment
       usage: key_establishment
-      quantum_risk: high
-      target_algorithm: ML-KEM-768
       confidence: 0.8
 
   - id: enqrypta.crypto.classical-signature
@@ -122,11 +113,10 @@ rules:
     severity: WARNING
     pattern-regex: (?i)\b(?:Ed25519|Ed448|secp256k1|prime256v1Sig|secp384r1Sig|secp521r1Sig|SM2Sig)\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.classical-signature
       algorithm: ECDSA
       primitive: signature
       usage: signing
-      quantum_risk: high
-      target_algorithm: ML-DSA-65
       confidence: 0.8
 
   - id: enqrypta.crypto.pqc-kem-catalog
@@ -135,11 +125,10 @@ rules:
     severity: INFO
     pattern-regex: (?i)\b(?:BIKE[-_ ]?L[135]|ClassicMcEliece\w+|FrodoKEM\w+|HQC[-_ ]?(?:128|192|256)|Kyber[-_ ]?(?:512|768|1024)|NtruPrimeSntrup761|sntrup761)\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.pqc-kem-catalog
       algorithm: PQC-KEM
       primitive: key_establishment
       usage: key_establishment
-      quantum_risk: low
-      target_algorithm: none
       confidence: 0.85
 
   - id: enqrypta.crypto.pqc-signature-catalog
@@ -148,9 +137,8 @@ rules:
     severity: INFO
     pattern-regex: (?i)\b(?:CROSS\w+|Dilithium[235]|Falcon(?:512|1024)|Mayo[1235]|SPHINCS\w+|UOV\w+)\b
     metadata:
+      enqrypta_rule_id: enqrypta.crypto.pqc-signature-catalog
       algorithm: PQC-SIGNATURE
       primitive: signature
       usage: signing
-      quantum_risk: low
-      target_algorithm: none
       confidence: 0.85

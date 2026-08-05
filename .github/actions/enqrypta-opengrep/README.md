@@ -1,25 +1,17 @@
-# EnQrypta Opengrep Action
+# EnQrypta OpenGrep Action v5
 
-This composite Action scans the caller repository with the pinned EnQrypta
-Opengrep rule pack. Source remains on the GitHub-hosted runner. The Action sends
-only normalized finding metadata to the EnQrypta API and retains raw JSON/SARIF
-as GitHub Actions artifacts.
+This is the canonical EnQrypta crypto-scanning action. It runs the pinned OpenGrep
+binary on the GitHub-hosted runner and sends observation-only schema `2.0` findings
+to the EnQrypta API. Raw JSON and SARIF stay in the workflow artifact; source lines
+are never included in the API payload.
 
-## Onboarding A Demo Repository
+The action reports stable rule IDs, repository-relative paths, locations, language,
+algorithm family, primitive, usage, scanner severity, confidence, and limited
+assessment evidence such as an exact matched parameter set. The API derives commit
+identity, fingerprints, classification, quantum risk, migration targets, and
+assessment recommendations.
 
-1. Register the public repository through `POST /api/v1/agent/asset/repos`.
-2. Publish an immutable `enqrypta-opengrep-workflow-v2` tag for this monorepo.
-3. Mirror `.github/workflows/enqrypta-opengrep.yml` to
-   `dhyey-qvh/enqrypta-actions` and publish the same immutable tag there.
-4. Configure the API with the exact public reusable-workflow ref and its commit SHA:
-
-```text
-GITHUB_APP_WORKFLOW_REF=dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v2
-GITHUB_OIDC_TRUSTED_WORKFLOW_REF=dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@refs/tags/enqrypta-opengrep-workflow-v2
-GITHUB_OIDC_TRUSTED_WORKFLOW_SHA=<40-character-commit-sha>
-```
-
-5. Add this workflow to the demo repository:
+## Consumer workflow
 
 ```yaml
 name: EnQrypta Crypto Scan
@@ -33,10 +25,28 @@ permissions:
 
 jobs:
   scan:
-    uses: dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v2
+    uses: dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v5
     with:
       api-url: https://api.enqrypta.example
 ```
 
-The registered repository's default branch must be selected when manually
-running the workflow.
+Configure the API to trust the exact reusable-workflow ref and the commit behind the
+immutable lightweight v5 tag:
+
+```text
+GITHUB_APP_WORKFLOW_REF=dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v5
+GITHUB_OIDC_TRUSTED_WORKFLOW_REF=dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@refs/tags/enqrypta-opengrep-workflow-v5
+GITHUB_OIDC_TRUSTED_WORKFLOW_SHA=<40-character-commit-sha>
+```
+
+Schema `1.0` and v4 payloads are intentionally incompatible with v5. Publish the v5
+tag only after the API accepts schema `2.0`, then update consumers and OIDC trust as
+one coordinated cutover.
+
+## Development
+
+```bash
+python -m pip install -r requirements-dev.txt
+ruff check .
+pytest
+```
