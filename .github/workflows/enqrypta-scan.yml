@@ -9,6 +9,11 @@ on:
       notification-email:
         required: false
         type: string
+      code-scan-id:
+        description: Durable EnQrypta code scan launch identifier
+        required: false
+        type: string
+        default: ""
       nightly-job-task-id:
         required: false
         type: string
@@ -19,9 +24,10 @@ permissions:
 
 jobs:
   scan:
-    uses: dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v5
+    uses: dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v6
     with:
       api-url: ${{ inputs.api-url }}
       notify-on-complete: ${{ inputs.notification-email != '' }}
       notification-email: ${{ inputs.notification-email }}
+      code-scan-id: ${{ inputs.code-scan-id }}
       nightly-job-task-id: ${{ inputs.nightly-job-task-id }}

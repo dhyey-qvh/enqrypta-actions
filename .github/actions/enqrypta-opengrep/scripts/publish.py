@@ -25,20 +25,41 @@ def request_oidc_token() -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True)
+    parser.add_argument("--input")
+    parser.add_argument("--bind-execution", action="store_true")
     args = parser.parse_args()
-
-    data = json.loads(Path(args.input).read_text())
-    notify = os.environ.get("ENQRYPTA_NOTIFY_ON_COMPLETE", "").lower() in {"1", "true", "yes", "on"}
-    if notify:
-        data["notify_on_complete"] = True
-        data["notification_email"] = os.environ.get("ENQRYPTA_NOTIFICATION_EMAIL", "")
-    nightly_job_task_id = os.environ.get("ENQRYPTA_NIGHTLY_JOB_TASK_ID", "").strip()
-    if nightly_job_task_id:
-        data["nightly_job_task_id"] = nightly_job_task_id
+    code_scan_id = os.environ.get("ENQRYPTA_CODE_SCAN_ID", "").strip()
+    if args.bind_execution:
+        if not code_scan_id:
+            return
+        if not code_scan_id.startswith("code-launch-") or any(
+            char not in "0123456789abcdef-" for char in code_scan_id.removeprefix("code-launch-")
+        ):
+            parser.error("invalid code scan launch identifier")
+        data = {}
+        endpoint = f"scans/launches/{code_scan_id}/execution"
+    else:
+        if not args.input:
+            parser.error("--input is required when publishing findings")
+        data = json.loads(Path(args.input).read_text())
+        notify = os.environ.get("ENQRYPTA_NOTIFY_ON_COMPLETE", "").lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if notify:
+            data["notify_on_complete"] = True
+            data["notification_email"] = os.environ.get("ENQRYPTA_NOTIFICATION_EMAIL", "")
+        nightly_job_task_id = os.environ.get("ENQRYPTA_NIGHTLY_JOB_TASK_ID", "").strip()
+        if nightly_job_task_id:
+            data["nightly_job_task_id"] = nightly_job_task_id
+        if code_scan_id:
+            data["code_scan_id"] = code_scan_id
+        endpoint = "scans/opengrep"
     payload = json.dumps(data, separators=(",", ":")).encode()
     token = request_oidc_token()
-    url = f"{os.environ['ENQRYPTA_API_URL'].rstrip('/')}/api/v1/agent/asset/repos/scans/opengrep"
+    url = f"{os.environ['ENQRYPTA_API_URL'].rstrip('/')}/api/v1/agent/asset/repos/{endpoint}"
     request = urllib.request.Request(
         url,
         data=payload,

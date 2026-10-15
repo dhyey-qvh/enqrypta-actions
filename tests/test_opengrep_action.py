@@ -183,16 +183,12 @@ def test_normalizer_rejects_paths_outside_workspace(path, tmp_path):
 def test_normalizer_returns_relative_posix_path(tmp_path):
     normalizer = load_script("normalize")
     source_path = tmp_path / "src" / "crypto.py"
-    finding = normalizer.normalize_result(
-        result("RSA", "RSA", path=str(source_path)), tmp_path
-    )
+    finding = normalizer.normalize_result(result("RSA", "RSA", path=str(source_path)), tmp_path)
 
     assert finding["file_path"] == "src/crypto.py"
 
 
-def test_publisher_keeps_controls_user_agent_and_api_error_details(
-    monkeypatch, tmp_path, capsys
-):
+def test_publisher_keeps_controls_user_agent_and_api_error_details(monkeypatch, tmp_path, capsys):
     publisher = load_script("publish")
     payload_path = tmp_path / "findings.json"
     payload_path.write_text('{"schema_version":"2.0","scanner_version":"1.22.0","findings":[]}')
@@ -243,5 +239,65 @@ def test_action_and_workflows_are_valid_yaml_and_use_v5():
     consumer = yaml.safe_load((ROOT / ".github" / "workflows" / "enqrypta-scan.yml").read_text())
 
     assert action["runs"]["using"] == "composite"
-    assert "@enqrypta-opengrep-workflow-v5" in reusable["jobs"]["scan"]["steps"][1]["uses"]
-    assert "@enqrypta-opengrep-workflow-v5" in consumer["jobs"]["scan"]["uses"]
+    assert "@enqrypta-opengrep-workflow-v6" in reusable["jobs"]["scan"]["steps"][1]["uses"]
+    assert "@enqrypta-opengrep-workflow-v6" in consumer["jobs"]["scan"]["uses"]
+
+
+def test_publisher_forwards_exact_launch_id(monkeypatch, tmp_path):
+    publisher = load_script("publish")
+    path = tmp_path / "findings.json"
+    path.write_text('{"schema_version":"2.0","scanner_version":"1","findings":[]}')
+    requests = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def send(request, timeout):
+        requests.append(request)
+        return Response()
+
+    monkeypatch.setenv("ENQRYPTA_API_URL", "https://api.example.test")
+    monkeypatch.setenv("ENQRYPTA_CODE_SCAN_ID", "code-launch-00000000-0000-0000-0000-000000000001")
+    monkeypatch.setattr(publisher, "request_oidc_token", lambda: "token")
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", send)
+    monkeypatch.setattr(sys, "argv", ["publish.py", "--input", str(path)])
+    publisher.main()
+    assert json.loads(requests[0].data)["code_scan_id"].startswith("code-launch-")
+
+
+def test_bind_execution_uses_oidc_before_scanning(monkeypatch):
+    publisher = load_script("publish")
+    requests = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def send(request, timeout):
+        requests.append(request)
+        return Response()
+
+    monkeypatch.setenv("ENQRYPTA_API_URL", "https://api.example.test")
+    monkeypatch.setenv("ENQRYPTA_CODE_SCAN_ID", "code-launch-00000000-0000-0000-0000-000000000001")
+    monkeypatch.setattr(publisher, "request_oidc_token", lambda: "oidc-token")
+    monkeypatch.setattr(publisher.urllib.request, "urlopen", send)
+    monkeypatch.setattr(sys, "argv", ["publish.py", "--bind-execution"])
+    publisher.main()
+    assert requests[0].full_url.endswith(
+        "/code-launch-00000000-0000-0000-0000-000000000001/execution"
+    )
+    assert requests[0].get_header("Authorization") == "Bearer oidc-token"
+    assert json.loads(requests[0].data) == {}

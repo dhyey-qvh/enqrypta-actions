@@ -14,6 +14,11 @@ on:
         required: false
         type: string
         default: ""
+      code-scan-id:
+        description: Durable EnQrypta code scan launch identifier
+        required: false
+        type: string
+        default: ""
       nightly-job-task-id:
         required: false
         type: string
@@ -31,6 +36,11 @@ on:
         default: false
       notification-email:
         description: Recipient for scan-complete email
+        required: false
+        type: string
+        default: ""
+      code-scan-id:
+        description: Durable EnQrypta code scan launch identifier
         required: false
         type: string
         default: ""
@@ -52,11 +62,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: dhyey-qvh/enqrypta-actions/.github/actions/enqrypta-opengrep@enqrypta-opengrep-workflow-v5
+      - uses: dhyey-qvh/enqrypta-actions/.github/actions/enqrypta-opengrep@enqrypta-opengrep-workflow-v6
         with:
           api-url: ${{ inputs.api-url }}
           notify-on-complete: ${{ inputs.notify-on-complete }}
           notification-email: ${{ inputs.notification-email }}
+          code-scan-id: ${{ inputs.code-scan-id }}
           nightly-job-task-id: ${{ inputs.nightly-job-task-id }}
 
       - name: Retain raw and normalized scan outputs
