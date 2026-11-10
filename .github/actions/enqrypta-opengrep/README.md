@@ -43,6 +43,45 @@ Schema `1.0` and v4 payloads are intentionally incompatible with v5. Publish the
 tag only after the API accepts schema `2.0`, then update consumers and OIDC trust as
 one coordinated cutover.
 
+## Schema 3.0 (unreleased, next major tag)
+
+`main` emits findings schema `3.0`. Published tags `v1`–`v6` are unchanged and
+keep sending their own schema. Release the next tag only after the API that
+accepts `3.0` is deployed. Schema `3.0` adds, per finding:
+
+- `finding_kind`: `inventory` or `misuse`. Rules with IDs under
+  `enqrypta.misuse.*` must set `metadata.finding_kind: misuse` and
+  `metadata.cwe` (for example `CWE-327`).
+- `site_key`: SHA-256 of finding kind, file, whitespace-normalized matched text
+  and its occurrence ordinal in the file. It survives line shifts; source text
+  itself is never sent.
+- `file_blob_sha`: Git blob SHA-1 of the scanned file (`git hash-object`).
+- `unresolved_parameters`: parameters the rule declared but the match did not
+  resolve to a literal.
+
+The payload adds `rules_digest`, a SHA-256 over the rule files used.
+
+### Rule metadata and metavariables
+
+Parameters come only from literal values (with Opengrep constant propagation)
+captured by these metavariables:
+
+| Metavariable | Evidence |
+|---|---|
+| `$TRANSFORMATION` | `"AES_256/GCM/NoPadding"` → `parameter_set`, `mode`, `padding` |
+| `$KEY_SIZE` / `$KEY_BYTES` | `key_size_bits` |
+| `$CURVE` | `parameter_set`, `group_order_bits` for known curves |
+| `$PARAMETER_SET` | `parameter_set` |
+| `$MODE`, `$PADDING` | `mode`, `padding` |
+| `$IV_BITS` / `$IV_BYTES` | `iv_length_bits` |
+| `$TAG_BITS` / `$TAG_BYTES` | `tag_length_bits` |
+| `$PROTOCOL` | `protocol` (normalized, e.g. `TLS 1.2`) |
+
+`metadata.parameters` lists the evidence fields a rule expects (any of
+`key_size_bits`, `group_order_bits`, `parameter_set`, `mode`, `padding`,
+`iv_length_bits`, `tag_length_bits`, `protocol`). Static evidence may be set in
+metadata: `iv_generation`, `protocol`, `mode`, `padding`.
+
 ## Development
 
 ```bash

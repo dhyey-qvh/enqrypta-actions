@@ -2,10 +2,45 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
+from collections import defaultdict
 from pathlib import Path
+
+SCHEMA_VERSION = "3.0"
+SITE_KEY_VERSION = "site-v2"
+FINDING_KINDS = {"inventory", "misuse"}
+CWE_PATTERN = re.compile(r"^CWE-[1-9][0-9]{0,4}$")
+# Evidence fields a rule may declare in ``metadata.parameters``. A declared
+# parameter that the match does not resolve to a literal is reported in
+# ``unresolved_parameters`` instead of being guessed.
+EVIDENCE_PARAMETERS = {
+    "key_size_bits",
+    "group_order_bits",
+    "parameter_set",
+    "mode",
+    "padding",
+    "iv_length_bits",
+    "tag_length_bits",
+    "protocol",
+}
+# Static evidence a rule may set in metadata (e.g. iv_generation: hardcoded).
+STATIC_EVIDENCE = {"iv_generation", "protocol", "mode", "padding"}
+TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_./+-]{0,63}$")
+# Decimal or hex integer literals, with Java/C (L, U) or Rust (u32, _usize) suffixes.
+INTEGER_PATTERN = re.compile(
+    r"^(?P<digits>0[xX][0-9a-fA-F_]+|[0-9][0-9_]*)"
+    r"(?:[lLuU]*|_?[uUiI](?:8|16|32|64|128|size))$"
+)
+PROTOCOL_PATTERNS = (
+    (re.compile(r"(?i)SSL[_ v-]?3"), "SSL 3.0"),
+    (re.compile(r"(?i)TLS[_ v-]?1[._]?3|TLS13"), "TLS 1.3"),
+    (re.compile(r"(?i)TLS[_ v-]?1[._]?2|TLS12"), "TLS 1.2"),
+    (re.compile(r"(?i)TLS[_ v-]?1[._]?1|TLS11"), "TLS 1.1"),
+    (re.compile(r"(?i)TLS[_ v-]?1(?:[._]?0)?(?![._0-9])|TLS10"), "TLS 1.0"),
+)
 
 REQUIRED_METADATA = {
     "enqrypta_rule_id",
@@ -39,6 +74,10 @@ EXACT_ALGORITHM_PATTERNS = {
 }
 KEY_SIZE_PATTERN = re.compile(r"(?i)^(?:RSA|AES)[-_ ]?(\d+)$")
 GROUP_ORDER_BITS = {
+    "P256": 256,
+    "P384": 384,
+    "P521": 521,
+    "SECP256R1": 256,
     "PRIME256V1": 256,
     "SECP256K1": 256,
     "SECP384R1": 384,
@@ -78,6 +117,132 @@ def matched_span(result: dict) -> str:
     return "\n".join([lines[0][start_column:], *lines[1:-1], lines[-1][:end_column]])
 
 
+def _strip_literal(raw: str) -> str | None:
+    """Return the literal value of a metavariable, or None if it is not a literal."""
+    value = raw.strip()
+    for prefix in ("br", "rb", "b", "r", "u", "f"):
+        if (
+            len(value) > len(prefix) + 1
+            and value[: len(prefix)].lower() == prefix
+            and value[len(prefix)] in "'\"`"
+        ):
+            if "f" in prefix:
+                return None  # interpolated string, not a literal
+            value = value[len(prefix):]
+            break
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"`":
+        if value[0] == "`" and "${" in value:
+            return None  # JS template with substitutions
+        return value[1:-1]
+    if INTEGER_PATTERN.match(value):
+        return value
+    return None
+
+
+def metavariable_literal(result: dict, name: str) -> str | None:
+    """Literal value captured by ``$NAME``, using Opengrep constant propagation."""
+    metavar = ((result.get("extra") or {}).get("metavars") or {}).get(name)
+    if not isinstance(metavar, dict):
+        return None
+    propagated = metavar.get("propagated_value") or {}
+    for raw in (propagated.get("svalue_abstract_content"), metavar.get("abstract_content")):
+        if isinstance(raw, str):
+            literal = _strip_literal(raw)
+            if literal is not None:
+                return literal
+    return None
+
+
+def _integer(value: str | None) -> int | None:
+    match = INTEGER_PATTERN.match(value) if value is not None else None
+    if match is None:
+        return None
+    digits = match.group("digits").replace("_", "")
+    if digits[:2].lower() == "0x":
+        if len(digits) == 2:
+            return None
+        number = int(digits, 16)
+    elif len(digits) > 1 and digits[0] == "0":
+        return None  # octal in Java/C/JS, decimal in Rust: ambiguous, leave unresolved
+    else:
+        number = int(digits, 10)
+    return number if number > 0 else None
+
+
+def _token(value: str | None) -> str | None:
+    return value if value is not None and TOKEN_PATTERN.match(value) else None
+
+
+def _protocol(value: str | None) -> str | None:
+    if value is None:
+        return None
+    for pattern, protocol in PROTOCOL_PATTERNS:
+        if pattern.search(value):
+            return protocol
+    return None
+
+
+def _group_order(value: str) -> int | None:
+    return GROUP_ORDER_BITS.get(value.upper().replace("_", "").replace("-", ""))
+
+
+def parameter_evidence(result: dict, algorithm: str) -> dict:
+    """Evidence resolved from rule metavariables; literal values only."""
+    evidence: dict = {}
+    transformation = metavariable_literal(result, "$TRANSFORMATION")
+    if transformation:
+        parts = [part.strip() for part in transformation.split("/")]
+        if parts and parts[0]:
+            pattern = EXACT_ALGORITHM_PATTERNS.get(algorithm)
+            exact = pattern.search(parts[0]) if pattern else None
+            if exact:
+                evidence["parameter_set"] = exact.group(0)
+        if len(parts) > 1 and _token(parts[1]):
+            evidence["mode"] = parts[1].upper()
+        if len(parts) > 2 and _token(parts[2]):
+            evidence["padding"] = parts[2]
+
+    key_bits = _integer(metavariable_literal(result, "$KEY_SIZE"))
+    key_bytes = _integer(metavariable_literal(result, "$KEY_BYTES"))
+    if key_bits or key_bytes:
+        evidence["key_size_bits"] = key_bits or key_bytes * 8
+
+    curve = _token(metavariable_literal(result, "$CURVE"))
+    if curve:
+        evidence["parameter_set"] = curve
+        if _group_order(curve):
+            evidence["group_order_bits"] = _group_order(curve)
+
+    parameter_set = _token(metavariable_literal(result, "$PARAMETER_SET"))
+    if parameter_set:
+        evidence["parameter_set"] = parameter_set
+
+    for name, field in (("$MODE", "mode"), ("$PADDING", "padding")):
+        token = _token(metavariable_literal(result, name))
+        if token:
+            evidence[field] = token.upper() if field == "mode" else token
+
+    for prefix, field in (("IV", "iv_length_bits"), ("TAG", "tag_length_bits")):
+        bits = _integer(metavariable_literal(result, f"${prefix}_BITS"))
+        byte_count = _integer(metavariable_literal(result, f"${prefix}_BYTES"))
+        if bits or byte_count:
+            evidence[field] = bits or byte_count * 8
+
+    protocol = _protocol(metavariable_literal(result, "$PROTOCOL"))
+    if protocol:
+        evidence["protocol"] = protocol
+    return evidence
+
+
+def _finding_kind(rule_id: str, metadata: dict) -> str:
+    kind = str(metadata.get("finding_kind", "inventory"))
+    if kind not in FINDING_KINDS:
+        raise ValueError(f"{rule_id}: unknown finding_kind {kind!r}")
+    if rule_id.startswith("enqrypta.misuse.") != (kind == "misuse"):
+        raise ValueError(f"{rule_id}: enqrypta.misuse.* rules must use finding_kind 'misuse'")
+    return kind
+
+
 def normalize_result(result: dict, workspace: Path | None = None) -> dict:
     extra = result.get("extra") or {}
     metadata = extra.get("metadata") or {}
@@ -90,8 +255,10 @@ def normalize_result(result: dict, workspace: Path | None = None) -> dict:
     exact_match = pattern.search(matched_span(result)) if pattern else None
     workspace = workspace or Path(os.environ["GITHUB_WORKSPACE"])
 
+    rule_id = str(metadata["enqrypta_rule_id"])
+    finding_kind = _finding_kind(rule_id, metadata)
     finding = {
-        "rule_id": str(metadata["enqrypta_rule_id"]),
+        "rule_id": rule_id,
         "file_path": normalize_path(str(result["path"]), workspace),
         "line_start": int(result["start"]["line"]),
         "line_end": int(result["end"]["line"]),
@@ -117,8 +284,97 @@ def normalize_result(result: dict, workspace: Path | None = None) -> dict:
     )
     if group_order:
         evidence["group_order_bits"] = group_order
+    for field in STATIC_EVIDENCE:
+        if field in metadata and field not in evidence:
+            value = _token(str(metadata[field]))
+            if value is None:
+                raise ValueError(f"{rule_id}: metadata {field} must be a short token")
+            evidence[field] = value
+    evidence.update(parameter_evidence(result, algorithm))
     finding["assessment_evidence"] = evidence
+
+    finding["finding_kind"] = finding_kind
+    if finding_kind == "misuse":
+        cwe = str(metadata.get("cwe", ""))
+        if not CWE_PATTERN.match(cwe):
+            raise ValueError(f"{rule_id}: misuse rules require metadata cwe like CWE-327")
+        finding["cwe"] = cwe
+    declared = metadata.get("parameters") or []
+    unknown = set(declared) - EVIDENCE_PARAMETERS
+    if unknown:
+        raise ValueError(f"{rule_id}: unknown declared parameters {sorted(unknown)}")
+    unresolved = sorted(field for field in set(declared) if field not in evidence)
+    if unresolved:
+        finding["unresolved_parameters"] = unresolved
     return finding
+
+
+def site_text(result: dict) -> str:
+    """Whitespace-normalized matched text; hashed into the site key, never sent."""
+    return " ".join(matched_span(result).split())
+
+
+def assign_site_keys(results: list[dict], findings: list[dict]) -> None:
+    """Give each finding a site key that survives line shifts.
+
+    The key covers finding kind, file, normalized matched text and the
+    occurrence ordinal of that text in the file, so identical matches in one
+    file stay distinct while edits elsewhere do not change the key.
+    """
+    order = sorted(
+        range(len(findings)),
+        key=lambda i: (
+            findings[i]["file_path"],
+            int(results[i]["start"].get("line", 0)),
+            int(results[i]["start"].get("col", 0)),
+            findings[i]["rule_id"],
+        ),
+    )
+    ordinals: dict[tuple[str, str, str], int] = defaultdict(int)
+    for index in order:
+        finding = findings[index]
+        text = site_text(results[index]) or finding["rule_id"]
+        group = (finding["finding_kind"], finding["file_path"], text)
+        raw = "\0".join(
+            [SITE_KEY_VERSION, *group, str(ordinals[group])]
+        )
+        finding["site_key"] = hashlib.sha256(raw.encode()).hexdigest()
+        ordinals[group] += 1
+
+
+def git_blob_sha(path: Path) -> str | None:
+    """Git blob SHA-1 of a file, identical to ``git hash-object``."""
+    try:
+        content = path.read_bytes()
+    except OSError:
+        return None
+    return hashlib.sha1(b"blob %d\0" % len(content) + content).hexdigest()
+
+
+def assign_file_blob_shas(findings: list[dict], workspace: Path) -> None:
+    cache: dict[str, str | None] = {}
+    for finding in findings:
+        path = finding["file_path"]
+        if path not in cache:
+            cache[path] = git_blob_sha(workspace / path)
+        if cache[path]:
+            finding["file_blob_sha"] = cache[path]
+
+
+def rules_digest(rules: Path) -> str:
+    """SHA-256 over every rule file (path and bytes) under ``rules``."""
+    files = (
+        [rules]
+        if rules.is_file()
+        else sorted(p for p in rules.rglob("*") if p.suffix in {".yml", ".yaml"})
+    )
+    if not files:
+        raise ValueError(f"no rule files found under {rules}")
+    digest = hashlib.sha256()
+    for path in files:
+        relative = path.name if rules.is_file() else path.relative_to(rules).as_posix()
+        digest.update(relative.encode() + b"\0" + path.read_bytes() + b"\0")
+    return digest.hexdigest()
 
 
 def main() -> None:
@@ -126,14 +382,22 @@ def main() -> None:
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--scanner-version", required=True)
+    parser.add_argument("--rules", help="rule file or directory used for the scan")
     args = parser.parse_args()
 
+    workspace = Path(os.environ["GITHUB_WORKSPACE"])
     raw = json.loads(Path(args.input).read_text())
+    results = raw.get("results", [])
+    findings = [normalize_result(result, workspace) for result in results]
+    assign_site_keys(results, findings)
+    assign_file_blob_shas(findings, workspace.resolve())
     output = {
-        "schema_version": "2.0",
+        "schema_version": SCHEMA_VERSION,
         "scanner_version": args.scanner_version,
-        "findings": [normalize_result(result) for result in raw.get("results", [])],
+        "findings": findings,
     }
+    if args.rules:
+        output["rules_digest"] = rules_digest(Path(args.rules))
     Path(args.output).write_text(json.dumps(output, separators=(",", ":")) + "\n")
 
 
