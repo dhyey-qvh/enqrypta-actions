@@ -1,0 +1,254 @@
+# Java crypto inventory: JCA/JCE (Cipher, Signature, KeyPairGenerator,
+# KeyAgreement, MessageDigest, KEM), BouncyCastle PQC and commons-codec.
+# JCA algorithm names are matched on string literals only.
+rules:
+  - id: enqrypta.crypto.java.aes-cipher
+    languages: [java]
+    severity: INFO
+    message: AES usage inventoried for PQC migration analysis.
+    patterns:
+      - pattern: Cipher.getInstance($TRANSFORMATION, ...)
+      - metavariable-regex:
+          metavariable: $TRANSFORMATION
+          regex: (?i)^"AES(_(128|192|256))?(/|")
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.aes-cipher
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: java
+      parameters: [mode]
+
+  - id: enqrypta.crypto.java.rsa-cipher
+    languages: [java]
+    severity: WARNING
+    message: RSA encryption requires PQC key-establishment migration.
+    patterns:
+      - pattern: Cipher.getInstance($TRANSFORMATION, ...)
+      - metavariable-regex:
+          metavariable: $TRANSFORMATION
+          regex: (?i)^"RSA(/|")
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.rsa-cipher
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.95
+      language: java
+      parameters: [padding]
+
+  - id: enqrypta.crypto.java.rsa-signature
+    languages: [java]
+    severity: WARNING
+    message: RSA signatures require PQC signature migration.
+    patterns:
+      - pattern: Signature.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^"([A-Z0-9-]+with(RSA|RSA/PSS|RSAandMGF1)|RSASSA-PSS)"$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.rsa-signature
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.crypto.java.ecdsa-signature
+    languages: [java]
+    severity: WARNING
+    message: ECDSA signatures require PQC signature migration.
+    patterns:
+      - pattern: Signature.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^"[A-Z0-9-]+withECDSA(inP1363Format)?"$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.ecdsa-signature
+      algorithm: ECDSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.crypto.java.ed25519
+    languages: [java]
+    severity: WARNING
+    message: Ed25519 signatures require PQC signature migration.
+    patterns:
+      - pattern-either:
+          - pattern: Signature.getInstance($ALGORITHM, ...)
+          - pattern: KeyPairGenerator.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^"(Ed25519|EdDSA)"$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.ed25519
+      algorithm: ED25519
+      primitive: signature
+      usage: signing
+      confidence: 0.9
+      language: java
+      parameter_set: Ed25519
+
+  - id: enqrypta.crypto.java.rsa-keygen
+    languages: [java]
+    severity: WARNING
+    message: RSA key generation requires PQC migration review.
+    pattern-either:
+      - patterns:
+          - pattern-inside: |
+              $GEN = KeyPairGenerator.getInstance("RSA", ...);
+              ...
+          - pattern: $GEN.initialize($KEY_SIZE, ...);
+      - patterns:
+          - pattern: KeyPairGenerator.getInstance("RSA", ...)
+          - pattern-not-inside: |
+              $GEN = KeyPairGenerator.getInstance("RSA", ...);
+              ...
+              $GEN.initialize(...);
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.rsa-keygen
+      algorithm: RSA
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.9
+      language: java
+      parameters: [key_size_bits]
+
+  - id: enqrypta.crypto.java.ecdh
+    languages: [java]
+    severity: WARNING
+    message: ECDH key agreement requires PQC key-establishment migration.
+    patterns:
+      - pattern: KeyAgreement.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^"ECDHC?"$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.ecdh
+      algorithm: ECDH
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.crypto.java.x25519
+    languages: [java]
+    severity: WARNING
+    message: X25519 key agreement requires PQC key-establishment migration.
+    patterns:
+      - pattern-either:
+          - pattern: KeyAgreement.getInstance($ALGORITHM, ...)
+          - pattern: KeyPairGenerator.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^"(X25519|XDH)"$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.x25519
+      algorithm: X25519
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.9
+      language: java
+      parameter_set: X25519
+
+  - id: enqrypta.crypto.java.dh
+    languages: [java]
+    severity: WARNING
+    message: Finite-field Diffie-Hellman requires PQC key-establishment migration.
+    patterns:
+      - pattern: KeyAgreement.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^"(DH|DiffieHellman)"$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.dh
+      algorithm: DH
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.crypto.java.sha1
+    languages: [java]
+    severity: ERROR
+    message: SHA-1 is deprecated and requires replacement.
+    pattern-either:
+      - patterns:
+          - pattern: MessageDigest.getInstance($ALGORITHM, ...)
+          - metavariable-regex:
+              metavariable: $ALGORITHM
+              regex: (?i)^"SHA-?1"$
+      - pattern: DigestUtils.sha1(...)
+      - pattern: DigestUtils.sha1Hex(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.sha1
+      algorithm: SHA-1
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.crypto.java.md5
+    languages: [java]
+    severity: ERROR
+    message: MD5 is deprecated and requires replacement.
+    pattern-either:
+      - patterns:
+          - pattern: MessageDigest.getInstance($ALGORITHM, ...)
+          - metavariable-regex:
+              metavariable: $ALGORITHM
+              regex: (?i)^"MD5"$
+      - pattern: DigestUtils.md5(...)
+      - pattern: DigestUtils.md5Hex(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.md5
+      algorithm: MD5
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.crypto.java.ml-kem
+    languages: [java]
+    severity: INFO
+    message: ML-KEM usage inventoried as post-quantum key establishment.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: KeyPairGenerator.getInstance($PARAMETER_SET, ...)
+              - pattern: KEM.getInstance($PARAMETER_SET, ...)
+          - metavariable-regex:
+              metavariable: $PARAMETER_SET
+              regex: (?i)^"ML-?KEM
+      - pattern: MLKEMParameterSpec.$PARAMETER_SET
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.ml-kem
+      algorithm: ML-KEM
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.crypto.java.ml-dsa
+    languages: [java]
+    severity: INFO
+    message: ML-DSA usage inventoried as a post-quantum signature.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: KeyPairGenerator.getInstance($PARAMETER_SET, ...)
+              - pattern: Signature.getInstance($PARAMETER_SET, ...)
+          - metavariable-regex:
+              metavariable: $PARAMETER_SET
+              regex: (?i)^"ML-?DSA
+      - pattern: MLDSAParameterSpec.$PARAMETER_SET
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.ml-dsa
+      algorithm: ML-DSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: java

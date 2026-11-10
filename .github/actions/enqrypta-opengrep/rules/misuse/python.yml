@@ -1,0 +1,260 @@
+# Python crypto misuse. Findings are stored as misuse (never crypto assets).
+rules:
+  - id: enqrypta.misuse.python.weak-cipher-3des
+    languages: [python]
+    severity: ERROR
+    message: Triple DES is deprecated; use AES-GCM.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.ciphers.algorithms.TripleDES(...)
+      - pattern: cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES(...)
+      - pattern: Crypto.Cipher.DES3.new(...)
+      - pattern: Cryptodome.Cipher.DES3.new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.weak-cipher-3des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: 3DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.misuse.python.weak-cipher-des
+    languages: [python]
+    severity: ERROR
+    message: DES is broken; use AES-GCM.
+    pattern-either:
+      - pattern: Crypto.Cipher.DES.new(...)
+      - pattern: Cryptodome.Cipher.DES.new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.weak-cipher-des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.misuse.python.weak-cipher-rc4
+    languages: [python]
+    severity: ERROR
+    message: RC4 is broken; use AES-GCM or ChaCha20-Poly1305.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.ciphers.algorithms.ARC4(...)
+      - pattern: cryptography.hazmat.decrepit.ciphers.algorithms.ARC4(...)
+      - pattern: Crypto.Cipher.ARC4.new(...)
+      - pattern: Cryptodome.Cipher.ARC4.new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.weak-cipher-rc4
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: RC4
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.misuse.python.weak-cipher-blowfish
+    languages: [python]
+    severity: WARNING
+    message: Blowfish has a 64-bit block; use AES-GCM.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.ciphers.algorithms.Blowfish(...)
+      - pattern: cryptography.hazmat.decrepit.ciphers.algorithms.Blowfish(...)
+      - pattern: Crypto.Cipher.Blowfish.new(...)
+      - pattern: Cryptodome.Cipher.Blowfish.new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.weak-cipher-blowfish
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: BLOWFISH
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.misuse.python.ecb-mode
+    languages: [python]
+    severity: WARNING
+    message: ECB mode leaks plaintext patterns; use an authenticated mode such as GCM.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.ciphers.modes.ECB()
+      - pattern: Crypto.Cipher.AES.new($KEY, Crypto.Cipher.AES.MODE_ECB, ...)
+      - pattern: Cryptodome.Cipher.AES.new($KEY, Cryptodome.Cipher.AES.MODE_ECB, ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.ecb-mode
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+      mode: ECB
+
+  - id: enqrypta.misuse.python.sha1-signature
+    languages: [python]
+    severity: ERROR
+    message: SHA-1 signatures are forgeable; sign with SHA-256 or stronger.
+    pattern-either:
+      - pattern: $KEY.sign($MESSAGE, $PADDING, cryptography.hazmat.primitives.hashes.SHA1())
+      - pattern: $KEY.sign($MESSAGE, cryptography.hazmat.primitives.asymmetric.ec.ECDSA(cryptography.hazmat.primitives.hashes.SHA1()))
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.sha1-signature
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: SHA-1
+      primitive: hash
+      usage: signing
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.misuse.python.md5-signature-or-mac
+    languages: [python]
+    severity: ERROR
+    message: MD5 in a signature or MAC is unsafe; use SHA-256 or stronger.
+    pattern-either:
+      - pattern: $KEY.sign($MESSAGE, $PADDING, cryptography.hazmat.primitives.hashes.MD5())
+      - pattern: hmac.new($KEY, $MESSAGE, hashlib.md5)
+      - pattern: hmac.new($KEY, $MESSAGE, digestmod=hashlib.md5)
+      - patterns:
+          - pattern-either:
+              - pattern: hmac.new($KEY, $MESSAGE, $NAME)
+              - pattern: hmac.new($KEY, $MESSAGE, digestmod=$NAME)
+          - metavariable-regex:
+              metavariable: $NAME
+              regex: (?i)^['"]md5['"]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.md5-signature-or-mac
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: MD5
+      primitive: hash
+      usage: mac
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.misuse.python.insecure-random
+    languages: [python]
+    severity: ERROR
+    message: The random module is not cryptographically secure; use secrets or os.urandom.
+    patterns:
+      - pattern-either:
+          - pattern: $VAR = random.$FUNC(...)
+          - pattern: $VAR = $SEP.join(<... random.$FUNC(...) ...>)
+      - metavariable-regex:
+          metavariable: $FUNC
+          regex: ^(random|randint|randrange|getrandbits|randbytes|choice|choices|sample)$
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i)^(.*_)?(key|iv|nonce|token|secret|salt|otp|password|passwd)s?(_.*)?$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.insecure-random
+      finding_kind: misuse
+      cwe: CWE-338
+      algorithm: PRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: python
+
+  - id: enqrypta.misuse.python.hardcoded-iv
+    languages: [python]
+    severity: ERROR
+    message: A constant IV or nonce breaks confidentiality; generate a fresh random value.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.ciphers.modes.$MODE("...", ...)
+      - pattern: cryptography.hazmat.primitives.ciphers.modes.$MODE(bytes($N), ...)
+      - pattern: cryptography.hazmat.primitives.ciphers.modes.$MODE("..." * $N, ...)
+      - pattern: Crypto.Cipher.AES.new($KEY, $MODE, iv="...", ...)
+      - pattern: Crypto.Cipher.AES.new($KEY, $MODE, nonce="...", ...)
+      - pattern: Crypto.Cipher.AES.new($KEY, $MODE, "...", ...)
+      - pattern: Cryptodome.Cipher.AES.new($KEY, $MODE, iv="...", ...)
+      - pattern: Cryptodome.Cipher.AES.new($KEY, $MODE, nonce="...", ...)
+      - pattern: Cryptodome.Cipher.AES.new($KEY, $MODE, "...", ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.hardcoded-iv
+      finding_kind: misuse
+      cwe: CWE-329
+      algorithm: SYMMETRIC-CIPHER
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: python
+      iv_generation: hardcoded
+      parameters: [mode]
+
+  - id: enqrypta.misuse.python.hardcoded-key
+    languages: [python]
+    severity: ERROR
+    message: A key embedded in source code is exposed; load it from a secret store.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.ciphers.algorithms.AES("...")
+      - pattern: cryptography.hazmat.primitives.ciphers.aead.AESGCM("...")
+      - pattern: Crypto.Cipher.AES.new("...", ...)
+      - pattern: Cryptodome.Cipher.AES.new("...", ...)
+      - pattern: hmac.new("...", ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.hardcoded-key
+      finding_kind: misuse
+      cwe: CWE-321
+      algorithm: SYMMETRIC-KEY
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: python
+
+  - id: enqrypta.misuse.python.tls-verify-disabled
+    languages: [python]
+    severity: ERROR
+    message: TLS certificate verification is disabled.
+    pattern-either:
+      - patterns:
+          - pattern: $CLIENT.$METHOD(..., verify=False, ...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(get|post|put|patch|delete|head|options|request|send|stream|Client|AsyncClient)$
+      - pattern: ssl._create_unverified_context(...)
+      - pattern: $CONTEXT.verify_mode = ssl.CERT_NONE
+      - pattern: $CONTEXT.check_hostname = False
+      - pattern: urllib3.PoolManager(..., cert_reqs="CERT_NONE", ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.tls-verify-disabled
+      finding_kind: misuse
+      cwe: CWE-295
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.misuse.python.weak-tls-version
+    languages: [python]
+    severity: ERROR
+    message: SSL 3.0, TLS 1.0 and TLS 1.1 are deprecated; require TLS 1.2 or later.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: ssl.SSLContext($PROTOCOL, ...)
+              - pattern: ssl.wrap_socket(..., ssl_version=$PROTOCOL, ...)
+          - metavariable-regex:
+              metavariable: $PROTOCOL
+              regex: ^.*PROTOCOL_(SSLv2|SSLv3|TLSv1|TLSv1_1)$
+      - patterns:
+          - pattern-either:
+              - pattern: $CONTEXT.minimum_version = $PROTOCOL
+              - pattern: $CONTEXT.maximum_version = $PROTOCOL
+          - metavariable-regex:
+              metavariable: $PROTOCOL
+              regex: ^.*TLSVersion\.(SSLv3|TLSv1|TLSv1_1)$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.weak-tls-version
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: python
+      parameters: [protocol]

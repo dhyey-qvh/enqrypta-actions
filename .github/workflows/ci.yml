@@ -21,6 +21,17 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements-dev.txt
       - run: ruff check .
+      - name: Install the action's pinned Opengrep for the rule corpus tests
+        run: |
+          set -euo pipefail
+          pin=$(python -c 'import yaml; i = yaml.safe_load(open(".github/actions/enqrypta-opengrep/action.yml"))["inputs"]; print(i["opengrep-version"]["default"], i["opengrep-sha256"]["default"])')
+          read -r version sha256 <<< "$pin"
+          curl --fail --location --silent --show-error \
+            "https://github.com/opengrep/opengrep/releases/download/v${version}/opengrep_manylinux_x86" \
+            --output "${RUNNER_TEMP}/opengrep"
+          echo "${sha256}  ${RUNNER_TEMP}/opengrep" | sha256sum --check -
+          chmod +x "${RUNNER_TEMP}/opengrep"
+          echo "OPENGREP_BIN=${RUNNER_TEMP}/opengrep" >> "$GITHUB_ENV"
       - run: pytest
 
   workflows:

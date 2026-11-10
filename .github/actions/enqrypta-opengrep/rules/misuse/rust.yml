@@ -1,0 +1,252 @@
+# Rust crypto misuse. Findings are stored as misuse (never crypto assets).
+rules:
+  - id: enqrypta.misuse.rust.weak-cipher-3des
+    languages: [rust]
+    severity: ERROR
+    message: Triple DES is deprecated; use AES-GCM.
+    pattern-either:
+      - patterns:
+          - pattern: Cipher::$CIPHER()
+          - metavariable-regex:
+              metavariable: $CIPHER
+              regex: ^des_ede3(_[a-z0-9]+)?$
+      - patterns:
+          - pattern-either:
+              - pattern: $CIPHER::new(...)
+              - pattern: $CIPHER::new_from_slice(...)
+          - metavariable-regex:
+              metavariable: $CIPHER
+              regex: ^(.*::)?TdesEde[23]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.weak-cipher-3des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: 3DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.misuse.rust.weak-cipher-des
+    languages: [rust]
+    severity: ERROR
+    message: DES is broken; use AES-GCM.
+    pattern-either:
+      - patterns:
+          - pattern: Cipher::$CIPHER()
+          - metavariable-regex:
+              metavariable: $CIPHER
+              regex: ^des_(cbc|ecb|cfb64|ofb)$
+      - pattern: des::Des::new(...)
+      - pattern: des::Des::new_from_slice(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.weak-cipher-des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.misuse.rust.weak-cipher-rc4
+    languages: [rust]
+    severity: ERROR
+    message: RC4 is broken; use AES-GCM or ChaCha20-Poly1305.
+    pattern-either:
+      - pattern: Cipher::rc4()
+      - pattern: Rc4::new(...)
+      - pattern: rc4::Rc4::new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.weak-cipher-rc4
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: RC4
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.misuse.rust.weak-cipher-blowfish
+    languages: [rust]
+    severity: WARNING
+    message: Blowfish has a 64-bit block; use AES-GCM.
+    pattern-either:
+      - patterns:
+          - pattern: Cipher::$CIPHER()
+          - metavariable-regex:
+              metavariable: $CIPHER
+              regex: ^bf_(cbc|ecb|cfb64|ofb)$
+      - pattern: blowfish::Blowfish::new(...)
+      - pattern: blowfish::Blowfish::new_from_slice(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.weak-cipher-blowfish
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: BLOWFISH
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.misuse.rust.ecb-mode
+    languages: [rust]
+    severity: WARNING
+    message: ECB mode leaks plaintext patterns; use AES-GCM.
+    pattern-either:
+      - patterns:
+          - pattern: Cipher::$CIPHER()
+          - metavariable-regex:
+              metavariable: $CIPHER
+              regex: ^aes_(128|192|256)_ecb$
+      - pattern: ecb::Encryptor::<$BLOCK>::new(...)
+      - pattern: ecb::Decryptor::<$BLOCK>::new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.ecb-mode
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: rust
+      mode: ECB
+
+  - id: enqrypta.misuse.rust.sha1-signature
+    languages: [rust]
+    severity: ERROR
+    message: SHA-1 signatures are forgeable; sign with SHA-256 or stronger.
+    pattern-either:
+      - pattern: Signer::new(MessageDigest::sha1(), $KEY)
+      - pattern: Pkcs1v15Sign::new::<Sha1>()
+      - pattern: rsa::pkcs1v15::SigningKey::<Sha1>::new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.sha1-signature
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: SHA-1
+      primitive: hash
+      usage: signing
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.misuse.rust.md5-signature-or-mac
+    languages: [rust]
+    severity: ERROR
+    message: MD5 in a signature or MAC is unsafe; use SHA-256 or stronger.
+    pattern-either:
+      - pattern: Hmac::<Md5>::new_from_slice(...)
+      - pattern: Signer::new(MessageDigest::md5(), $KEY)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.md5-signature-or-mac
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: MD5
+      primitive: hash
+      usage: mac
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.misuse.rust.insecure-random
+    languages: [rust]
+    severity: ERROR
+    message: A fixed-seed RNG makes keys predictable; use OsRng or rand::rng().
+    patterns:
+      - pattern-inside: |
+          let mut $RNG = $TYPE::seed_from_u64(...);
+          ...
+      - pattern-either:
+          - pattern: RsaPrivateKey::new(&mut $RNG, ...)
+          - pattern: $KEY::random(&mut $RNG)
+          - pattern: $KEY::generate(&mut $RNG)
+          - pattern: $KEY::random_from_rng(&mut $RNG)
+          - pattern: $RNG.fill_bytes($BUFFER)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.insecure-random
+      finding_kind: misuse
+      cwe: CWE-338
+      algorithm: PRNG
+      primitive: random
+      usage: random
+      confidence: 0.9
+      language: rust
+
+  - id: enqrypta.misuse.rust.hardcoded-iv
+    languages: [rust]
+    severity: ERROR
+    message: A constant IV or nonce breaks confidentiality; generate a fresh random value.
+    pattern-either:
+      - pattern: Nonce::from_slice(b"...")
+      - pattern: Nonce::from_slice(&[$BYTE; $N])
+      - pattern: Nonce::<$CIPHER>::from_slice(b"...")
+      - pattern: encrypt(Cipher::$CIPHER(), $KEY, Some(b"..."), $DATA)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.hardcoded-iv
+      finding_kind: misuse
+      cwe: CWE-329
+      algorithm: SYMMETRIC-CIPHER
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: rust
+      iv_generation: hardcoded
+
+  - id: enqrypta.misuse.rust.hardcoded-key
+    languages: [rust]
+    severity: ERROR
+    message: A key embedded in source code is exposed; load it from a secret store.
+    pattern-either:
+      - pattern: Key::<$CIPHER>::from_slice(b"...")
+      - pattern: $CIPHER::new_from_slice(b"...")
+      - pattern: Hmac::<$HASH>::new_from_slice(b"...")
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.hardcoded-key
+      finding_kind: misuse
+      cwe: CWE-321
+      algorithm: SYMMETRIC-KEY
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: rust
+
+  - id: enqrypta.misuse.rust.tls-verify-disabled
+    languages: [rust]
+    severity: ERROR
+    message: TLS certificate or hostname verification is disabled.
+    pattern-either:
+      - pattern: $BUILDER.danger_accept_invalid_certs(true)
+      - pattern: $BUILDER.danger_accept_invalid_hostnames(true)
+      - pattern: $CONFIG.dangerous().set_certificate_verifier(...)
+      - pattern: $CONFIG.dangerous().with_custom_certificate_verifier(...)
+      - pattern: $CONTEXT.set_verify(SslVerifyMode::NONE)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.tls-verify-disabled
+      finding_kind: misuse
+      cwe: CWE-295
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.9
+      language: rust
+
+  - id: enqrypta.misuse.rust.weak-tls-version
+    languages: [rust]
+    severity: ERROR
+    message: SSL 3.0, TLS 1.0 and TLS 1.1 are deprecated; require TLS 1.2 or later.
+    patterns:
+      - pattern-either:
+          - pattern: $BUILDER.set_min_proto_version(Some($PROTOCOL))
+          - pattern: $BUILDER.min_protocol_version(Some($PROTOCOL))
+      - metavariable-regex:
+          metavariable: $PROTOCOL
+          regex: ^(SslVersion::(SSL3|TLS1|TLS1_1)|Protocol::(Sslv3|Tlsv10|Tlsv11))$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.weak-tls-version
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: rust
+      parameters: [protocol]

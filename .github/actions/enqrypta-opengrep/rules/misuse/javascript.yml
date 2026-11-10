@@ -1,0 +1,259 @@
+# JavaScript/TypeScript crypto misuse. Findings are stored as misuse (never crypto assets).
+rules:
+  - id: enqrypta.misuse.javascript.weak-cipher-3des
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Triple DES is deprecated; use AES-GCM.
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createCipheriv($CIPHER, ...)
+          - pattern: $CRYPTO.createDecipheriv($CIPHER, ...)
+          - pattern: createCipheriv($CIPHER, ...)
+      - metavariable-regex:
+          metavariable: $CIPHER
+          regex: (?i)^['"`](des-ede3|des3|des-ede)(-[a-z0-9]+)?['"`]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.weak-cipher-3des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: 3DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.weak-cipher-des
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: DES is broken; use AES-GCM.
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createCipheriv($CIPHER, ...)
+          - pattern: $CRYPTO.createDecipheriv($CIPHER, ...)
+          - pattern: createCipheriv($CIPHER, ...)
+      - metavariable-regex:
+          metavariable: $CIPHER
+          regex: (?i)^['"`]des(-(cbc|ecb|cfb|ofb))?['"`]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.weak-cipher-des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.weak-cipher-rc4
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: RC4 is broken; use AES-GCM or ChaCha20-Poly1305.
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createCipheriv($CIPHER, ...)
+          - pattern: $CRYPTO.createDecipheriv($CIPHER, ...)
+          - pattern: createCipheriv($CIPHER, ...)
+      - metavariable-regex:
+          metavariable: $CIPHER
+          regex: (?i)^['"`]rc4(-[a-z0-9]+)?['"`]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.weak-cipher-rc4
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: RC4
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.weak-cipher-blowfish
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: Blowfish has a 64-bit block; use AES-GCM.
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createCipheriv($CIPHER, ...)
+          - pattern: $CRYPTO.createDecipheriv($CIPHER, ...)
+          - pattern: createCipheriv($CIPHER, ...)
+      - metavariable-regex:
+          metavariable: $CIPHER
+          regex: (?i)^['"`](bf|blowfish)(-[a-z0-9]+)?['"`]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.weak-cipher-blowfish
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: BLOWFISH
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.ecb-mode
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: ECB mode leaks plaintext patterns; use aes-256-gcm.
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createCipheriv($CIPHER, ...)
+          - pattern: $CRYPTO.createDecipheriv($CIPHER, ...)
+          - pattern: createCipheriv($CIPHER, ...)
+      - metavariable-regex:
+          metavariable: $CIPHER
+          regex: (?i)^['"`]aes-(128|192|256)-ecb['"`]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.ecb-mode
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: javascript
+      mode: ECB
+
+  - id: enqrypta.misuse.javascript.sha1-signature
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: SHA-1 signatures are forgeable; sign with SHA-256 or stronger.
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createSign($ALGORITHM, ...)
+          - pattern: $CRYPTO.sign($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^['"`](RSA-)?SHA-?1['"`]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.sha1-signature
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: SHA-1
+      primitive: hash
+      usage: signing
+      confidence: 0.95
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.md5-signature-or-mac
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: MD5 in a signature or MAC is unsafe; use SHA-256 or stronger.
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createHmac($ALGORITHM, ...)
+          - pattern: createHmac($ALGORITHM, ...)
+          - pattern: $CRYPTO.createSign($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^['"`](RSA-)?MD5['"`]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.md5-signature-or-mac
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: MD5
+      primitive: hash
+      usage: mac
+      confidence: 0.95
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.insecure-random
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Math.random() is not cryptographically secure; use crypto.randomBytes or crypto.getRandomValues.
+    patterns:
+      - pattern: $VAR = <... Math.random() ...>
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: ^(?:(?:.*_)?(?:key|iv|nonce|salt|token|secret|otp|password)|.*(?:Key|Iv|IV|Nonce|Salt|Token|Secret|Otp|Password)|(?:.*_)?(?:KEY|IV|NONCE|SALT|TOKEN|SECRET|OTP|PASSWORD))s?(?:[A-Z0-9_].*)?$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.insecure-random
+      finding_kind: misuse
+      cwe: CWE-338
+      algorithm: PRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.hardcoded-iv
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: A constant IV or nonce breaks confidentiality; generate a fresh random value.
+    pattern-either:
+      - pattern: $CRYPTO.createCipheriv($CIPHER, $KEY, "...", ...)
+      - pattern: $CRYPTO.createCipheriv($CIPHER, $KEY, Buffer.from("...", ...), ...)
+      - pattern: $CRYPTO.createCipheriv($CIPHER, $KEY, Buffer.alloc($N), ...)
+      - pattern: createCipheriv($CIPHER, $KEY, "...", ...)
+      - pattern: createCipheriv($CIPHER, $KEY, Buffer.from("...", ...), ...)
+      - pattern: createCipheriv($CIPHER, $KEY, Buffer.alloc($N), ...)
+      - pattern: '$SUBTLE.encrypt({..., iv: new Uint8Array($N), ...}, ...)'
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.hardcoded-iv
+      finding_kind: misuse
+      cwe: CWE-329
+      algorithm: SYMMETRIC-CIPHER
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: javascript
+      iv_generation: hardcoded
+
+  - id: enqrypta.misuse.javascript.hardcoded-key
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: A key embedded in source code is exposed; load it from a secret store.
+    pattern-either:
+      - pattern: $CRYPTO.createCipheriv($CIPHER, "...", ...)
+      - pattern: $CRYPTO.createCipheriv($CIPHER, Buffer.from("...", ...), ...)
+      - pattern: createCipheriv($CIPHER, "...", ...)
+      - pattern: createCipheriv($CIPHER, Buffer.from("...", ...), ...)
+      - pattern: $CRYPTO.createHmac($ALGORITHM, "...", ...)
+      - pattern: createHmac($ALGORITHM, "...", ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.hardcoded-key
+      finding_kind: misuse
+      cwe: CWE-321
+      algorithm: SYMMETRIC-KEY
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.tls-verify-disabled
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: TLS certificate verification is disabled.
+    pattern-either:
+      - pattern: '{..., rejectUnauthorized: false, ...}'
+      - pattern: '{..., checkServerIdentity: () => undefined, ...}'
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.tls-verify-disabled
+      finding_kind: misuse
+      cwe: CWE-295
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: javascript
+
+  - id: enqrypta.misuse.javascript.weak-tls-version
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: SSL 3.0, TLS 1.0 and TLS 1.1 are deprecated; require TLS 1.2 or later.
+    patterns:
+      - pattern-either:
+          - pattern: '{..., minVersion: $PROTOCOL, ...}'
+          - pattern: '{..., secureProtocol: $PROTOCOL, ...}'
+      - metavariable-regex:
+          metavariable: $PROTOCOL
+          regex: ^['"`](TLSv1|TLSv1\.1|SSLv3|TLSv1_method|TLSv1_1_method|SSLv3_method)['"`]$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.weak-tls-version
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: javascript
+      parameters: [protocol]

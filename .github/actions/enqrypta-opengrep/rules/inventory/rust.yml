@@ -1,0 +1,278 @@
+# Rust crypto inventory: RustCrypto crates (rsa, p256/p384, ed25519-dalek,
+# x25519-dalek, aes-gcm, sha1, md-5, ml-kem, ml-dsa), ring and the openssl crate.
+# Bare type names are matched only in files that `use` that exact type from
+# its crate (e.g. `use x25519_dalek::StaticSecret;`).
+# Opengrep scopes a `use` from the import to the end of the file, not per
+# module, so nested modules importing a same-named type can be misattributed.
+rules:
+  - id: enqrypta.crypto.rust.rsa-keygen
+    languages: [rust]
+    severity: WARNING
+    message: RSA key generation requires PQC migration review.
+    pattern-either:
+      - pattern: RsaPrivateKey::new($RNG, $KEY_SIZE)
+      - pattern: rsa::RsaPrivateKey::new($RNG, $KEY_SIZE)
+      - pattern: Rsa::generate($KEY_SIZE)
+      - pattern: openssl::rsa::Rsa::generate($KEY_SIZE)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.rsa-keygen
+      algorithm: RSA
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.95
+      language: rust
+      parameters: [key_size_bits]
+
+  - id: enqrypta.crypto.rust.rsa-encrypt
+    languages: [rust]
+    severity: WARNING
+    message: RSA encryption requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: $KEY.encrypt($RNG, Oaep::new::<$HASH>(), $DATA)
+      - pattern: $KEY.decrypt(Oaep::new::<$HASH>(), $DATA)
+      - pattern: $KEY.encrypt($RNG, Pkcs1v15Encrypt, $DATA)
+      - pattern: $KEY.decrypt(Pkcs1v15Encrypt, $DATA)
+      - pattern: $KEY.public_encrypt($FROM, $TO, $PADDING)
+      - pattern: $KEY.private_decrypt($FROM, $TO, $PADDING)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.rsa-encrypt
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.crypto.rust.rsa-sign
+    languages: [rust]
+    severity: WARNING
+    message: RSA signatures require PQC signature migration.
+    pattern-either:
+      - pattern: Pkcs1v15Sign::new::<$HASH>()
+      - pattern: rsa::pkcs1v15::SigningKey::<$HASH>::new(...)
+      - pattern: rsa::pss::SigningKey::<$HASH>::new(...)
+      - pattern: RsaKeyPair::from_pkcs8(...)
+      - pattern: RsaKeyPair::from_der(...)
+      - patterns:
+          - pattern-inside: |
+              use rsa::$MODULE::SigningKey;
+              ...
+          - pattern: SigningKey::<$HASH>::new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.rsa-sign
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.crypto.rust.ecdsa
+    languages: [rust]
+    severity: WARNING
+    message: ECDSA signatures require PQC signature migration.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $CURVE::ecdsa::SigningKey::random(...)
+              - pattern: $CURVE::ecdsa::SigningKey::from_bytes(...)
+              - patterns:
+                  - pattern-inside: |
+                      use $CURVE::ecdsa::SigningKey;
+                      ...
+                  - pattern-either:
+                      - pattern: SigningKey::random(...)
+                      - pattern: SigningKey::from_bytes(...)
+          - metavariable-regex:
+              metavariable: $CURVE
+              regex: ^p(256|384|521)$
+      - pattern: EcdsaKeyPair::from_pkcs8(...)
+      - pattern: EcdsaKeyPair::generate_pkcs8(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.ecdsa
+      algorithm: ECDSA
+      primitive: signature
+      usage: signing
+      confidence: 0.9
+      language: rust
+
+  - id: enqrypta.crypto.rust.ecdh
+    languages: [rust]
+    severity: WARNING
+    message: ECDH key agreement requires PQC key-establishment migration.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $CURVE::ecdh::EphemeralSecret::random(...)
+              - patterns:
+                  - pattern-inside: |
+                      use $CURVE::ecdh::EphemeralSecret;
+                      ...
+                  - pattern: EphemeralSecret::random(...)
+          - metavariable-regex:
+              metavariable: $CURVE
+              regex: ^p(256|384|521)$
+      - patterns:
+          - pattern: EphemeralPrivateKey::generate(&$ALGORITHM, ...)
+          - metavariable-regex:
+              metavariable: $ALGORITHM
+              regex: ^(agreement::)?ECDH_P(256|384)$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.ecdh
+      algorithm: ECDH
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.9
+      language: rust
+
+  - id: enqrypta.crypto.rust.x25519
+    languages: [rust]
+    severity: WARNING
+    message: X25519 key agreement requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: x25519_dalek::EphemeralSecret::$CTOR(...)
+      - pattern: x25519_dalek::StaticSecret::$CTOR(...)
+      - patterns:
+          - pattern-inside: |
+              use x25519_dalek::EphemeralSecret;
+              ...
+          - pattern: EphemeralSecret::$CTOR(...)
+      - patterns:
+          - pattern-inside: |
+              use x25519_dalek::StaticSecret;
+              ...
+          - pattern: StaticSecret::$CTOR(...)
+      - patterns:
+          - pattern: EphemeralPrivateKey::generate(&$ALGORITHM, ...)
+          - metavariable-regex:
+              metavariable: $ALGORITHM
+              regex: ^(agreement::)?X25519$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.x25519
+      algorithm: X25519
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.9
+      language: rust
+      parameter_set: X25519
+
+  - id: enqrypta.crypto.rust.ed25519
+    languages: [rust]
+    severity: WARNING
+    message: Ed25519 signatures require PQC signature migration.
+    pattern-either:
+      - pattern: ed25519_dalek::SigningKey::generate(...)
+      - pattern: ed25519_dalek::SigningKey::from_bytes(...)
+      - patterns:
+          - pattern-inside: |
+              use ed25519_dalek::SigningKey;
+              ...
+          - pattern-either:
+              - pattern: SigningKey::generate(...)
+              - pattern: SigningKey::from_bytes(...)
+      - pattern: Ed25519KeyPair::generate_pkcs8(...)
+      - pattern: Ed25519KeyPair::from_pkcs8(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.ed25519
+      algorithm: ED25519
+      primitive: signature
+      usage: signing
+      confidence: 0.9
+      language: rust
+      parameter_set: Ed25519
+
+  - id: enqrypta.crypto.rust.aes
+    languages: [rust]
+    severity: INFO
+    message: AES usage inventoried for PQC migration analysis.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $CIPHER::new(...)
+              - pattern: $CIPHER::new_from_slice(...)
+          - metavariable-regex:
+              metavariable: $CIPHER
+              regex: ^(.*::)?Aes(128|192|256)(Gcm|GcmSiv)?$
+      - patterns:
+          - pattern: Cipher::$CIPHER()
+          - metavariable-regex:
+              metavariable: $CIPHER
+              regex: ^aes_(128|192|256)_[a-z0-9]+$
+      - patterns:
+          - pattern: UnboundKey::new(&$CIPHER, ...)
+          - metavariable-regex:
+              metavariable: $CIPHER
+              regex: ^(aead::)?AES_(128|256)_GCM$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.aes
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.crypto.rust.sha1
+    languages: [rust]
+    severity: ERROR
+    message: SHA-1 is deprecated and requires replacement.
+    pattern-either:
+      - pattern: Sha1::new()
+      - pattern: Sha1::digest(...)
+      - pattern: MessageDigest::sha1()
+      - pattern: digest::digest(&digest::SHA1_FOR_LEGACY_USE_ONLY, ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.sha1
+      algorithm: SHA-1
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.crypto.rust.md5
+    languages: [rust]
+    severity: ERROR
+    message: MD5 is deprecated and requires replacement.
+    pattern-either:
+      - pattern: Md5::new()
+      - pattern: Md5::digest(...)
+      - pattern: md5::compute(...)
+      - pattern: MessageDigest::md5()
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.md5
+      algorithm: MD5
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.crypto.rust.ml-kem
+    languages: [rust]
+    severity: INFO
+    message: ML-KEM usage inventoried as post-quantum key establishment.
+    patterns:
+      - pattern: $PARAMETER_SET::generate(...)
+      - metavariable-regex:
+          metavariable: $PARAMETER_SET
+          regex: ^(.*::)?MlKem(512|768|1024)$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.ml-kem
+      algorithm: ML-KEM
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: rust
+
+  - id: enqrypta.crypto.rust.ml-dsa
+    languages: [rust]
+    severity: INFO
+    message: ML-DSA usage inventoried as a post-quantum signature.
+    patterns:
+      - pattern: $PARAMETER_SET::key_gen(...)
+      - metavariable-regex:
+          metavariable: $PARAMETER_SET
+          regex: ^(.*::)?MlDsa(44|65|87)$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.ml-dsa
+      algorithm: ML-DSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: rust

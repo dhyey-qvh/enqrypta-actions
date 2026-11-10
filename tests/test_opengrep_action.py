@@ -50,8 +50,8 @@ def result(
     }
 
 
-def test_rules_have_unique_stable_ids_without_policy_metadata():
-    rules = yaml.safe_load((ACTION / "rules" / "crypto.yml").read_text())["rules"]
+def test_fallback_rules_have_unique_stable_ids_without_policy_metadata():
+    rules = yaml.safe_load((ACTION / "rules" / "fallback" / "generic.yml").read_text())["rules"]
     required = {"enqrypta_rule_id", "algorithm", "primitive", "usage", "confidence"}
     stable_ids = [rule["metadata"]["enqrypta_rule_id"] for rule in rules]
 
@@ -352,7 +352,13 @@ def test_transformation_string_yields_mode_padding_and_parameter_set(tmp_path):
         ({"CURVE": "'secp384r1'"}, {"parameter_set": "secp384r1", "group_order_bits": 384}),
         ({"CURVE": '"P-256"'}, {"parameter_set": "P-256", "group_order_bits": 256}),
         ({"PROTOCOL": '"TLSv1.2"'}, {"protocol": "TLS 1.2"}),
-        ({"PROTOCOL": "tls.VersionTLS13"}, {}),
+        ({"PROTOCOL": "tls.VersionTLS13"}, {"protocol": "TLS 1.3"}),
+        ({"PROTOCOL": "rustls::version::TLS12"}, {"protocol": "TLS 1.2"}),
+        ({"PROTOCOL": "'TLSv1_method'"}, {"protocol": "TLS 1.0"}),
+        ({"PROTOCOL": "minVersion"}, {}),
+        ({"CURVE": "ec.SECP384R1()"}, {"parameter_set": "SECP384R1", "group_order_bits": 384}),
+        ({"CURVE": "elliptic.P256()"}, {"parameter_set": "P256", "group_order_bits": 256}),
+        ({"CURVE": "curve"}, {}),
         ({"PROTOCOL": '"TLS1_1_VERSION"'}, {"protocol": "TLS 1.1"}),
         ({"PROTOCOL": '"PROTOCOL_TLSv1"'}, {"protocol": "TLS 1.0"}),
     ],
@@ -495,7 +501,7 @@ def test_rules_digest_tracks_rule_content(tmp_path):
     assert first == normalizer.rules_digest(rules)
     rule.write_text("rules: [] # changed\n")
     assert normalizer.rules_digest(rules) != first
-    assert len(normalizer.rules_digest(ACTION / "rules" / "crypto.yml")) == 64
+    assert len(normalizer.rules_digest(ACTION / "rules")) == 64
 
 
 def test_main_emits_rules_digest_and_blob_hash(monkeypatch, tmp_path):
@@ -511,14 +517,14 @@ def test_main_emits_rules_digest_and_blob_hash(monkeypatch, tmp_path):
         "argv",
         [
             "normalize.py", "--input", str(input_path), "--output", str(output_path),
-            "--scanner-version", "1.22.0", "--rules", str(ACTION / "rules" / "crypto.yml"),
+            "--scanner-version", "1.22.0", "--rules", str(ACTION / "rules"),
         ],
     )
 
     normalizer.main()
 
     payload = json.loads(output_path.read_text())
-    assert payload["rules_digest"] == normalizer.rules_digest(ACTION / "rules" / "crypto.yml")
+    assert payload["rules_digest"] == normalizer.rules_digest(ACTION / "rules")
     assert len(payload["findings"][0]["file_blob_sha"]) == 40
 
 
@@ -549,3 +555,66 @@ def test_interpolated_strings_are_not_literals(tmp_path, transformation):
     assert "mode" not in finding["assessment_evidence"]
     assert finding["unresolved_parameters"] == ["mode"]
     assert normalizer._strip_literal('rb"raw"') == "raw"
+
+
+@pytest.mark.parametrize(
+    ("metavars", "expected"),
+    [
+        ({"MODE": "AES.MODE_ECB"}, {"mode": "ECB"}),
+        ({"MODE": "modes.GCM(iv)"}, {"mode": "GCM"}),
+        ({"MODE": "'cbc'"}, {"mode": "CBC"}),
+        ({"MODE": "chosen_mode"}, {}),
+        (
+            {"CIPHER": "'aes-256-gcm'"},
+            {"parameter_set": "AES-256", "key_size_bits": 256, "mode": "GCM"},
+        ),
+        ({"CIPHER": "'des-ede3-cbc'"}, {"mode": "CBC"}),
+        ({"CIPHER": "'AES-GCM'"}, {"mode": "GCM"}),
+        ({"CIPHER": "algorithm"}, {}),
+    ],
+)
+def test_mode_and_cipher_name_metavariables(tmp_path, metavars, expected):
+    normalizer = load_script("normalize")
+    evidence = normalizer.normalize_result(
+        with_metavars(result("AES", "cipher(...)"), **metavars), tmp_path
+    )["assessment_evidence"]
+    observed = {
+        key: value
+        for key, value in evidence.items()
+        if key in {"mode", "parameter_set", "key_size_bits"}
+    }
+    assert observed == expected
+
+
+def test_static_metadata_parameters_and_integers(tmp_path):
+    normalizer = load_script("normalize")
+    evidence = normalizer.normalize_result(
+        with_metadata(
+            result("ECDSA", "p384::ecdsa::SigningKey::random(&mut rng)"),
+            parameter_set="P-384",
+            protocol="TLS 1.0",
+            key_size_bits=384,
+        ),
+        tmp_path,
+    )["assessment_evidence"]
+    assert evidence["parameter_set"] == "P-384"
+    assert evidence["group_order_bits"] == 384
+    assert evidence["protocol"] == "TLS 1.0"
+    assert evidence["key_size_bits"] == 384
+
+    with pytest.raises(ValueError, match="positive integer"):
+        normalizer.normalize_result(
+            with_metadata(result("AES", "Aes256Gcm"), key_size_bits="256"), tmp_path
+        )
+
+
+def test_jca_rsa_transformation_reports_padding_but_no_block_mode(tmp_path):
+    normalizer = load_script("normalize")
+    raw = with_metavars(
+        result("RSA", 'Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")'),
+        TRANSFORMATION='"RSA/ECB/OAEPWithSHA-256AndMGF1Padding"',
+    )
+    evidence = normalizer.normalize_result(raw, tmp_path)["assessment_evidence"]
+
+    assert "mode" not in evidence
+    assert evidence["padding"] == "OAEPWithSHA-256AndMGF1Padding"

@@ -60,7 +60,7 @@ runs:
     - name: Run EnQrypta crypto rules
       shell: bash
       env:
-        ENQRYPTA_RULES: ${{ github.action_path }}/rules/crypto.yml
+        ENQRYPTA_RULES: ${{ github.action_path }}/rules
       run: |
         set -euo pipefail
         .enqrypta/bin/opengrep scan \
@@ -73,7 +73,7 @@ runs:
       shell: bash
       env:
         OPENGREP_VERSION: ${{ inputs.opengrep-version }}
-        ENQRYPTA_RULES: ${{ github.action_path }}/rules/crypto.yml
+        ENQRYPTA_RULES: ${{ github.action_path }}/rules
       run: |
         python "${{ github.action_path }}/scripts/normalize.py" \
           --input .enqrypta/opengrep.json \
