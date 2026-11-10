@@ -233,7 +233,7 @@ def test_publisher_keeps_controls_user_agent_and_api_error_details(monkeypatch, 
     assert "secret-token" not in stderr
 
 
-def test_action_and_workflows_are_valid_yaml_and_use_v5():
+def test_action_and_workflows_are_valid_yaml_and_use_v7():
     action = yaml.safe_load((ACTION / "action.yml").read_text())
     reusable = yaml.safe_load(
         (ROOT / ".github" / "workflows" / "enqrypta-opengrep.yml").read_text()
@@ -241,8 +241,8 @@ def test_action_and_workflows_are_valid_yaml_and_use_v5():
     consumer = yaml.safe_load((ROOT / ".github" / "workflows" / "enqrypta-scan.yml").read_text())
 
     assert action["runs"]["using"] == "composite"
-    assert "@enqrypta-opengrep-workflow-v6" in reusable["jobs"]["scan"]["steps"][1]["uses"]
-    assert "@enqrypta-opengrep-workflow-v6" in consumer["jobs"]["scan"]["uses"]
+    assert "@enqrypta-opengrep-workflow-v7" in reusable["jobs"]["scan"]["steps"][1]["uses"]
+    assert "@enqrypta-opengrep-workflow-v7" in consumer["jobs"]["scan"]["uses"]
 
 
 def test_publisher_forwards_exact_launch_id(monkeypatch, tmp_path):

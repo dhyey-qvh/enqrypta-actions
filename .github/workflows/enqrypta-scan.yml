@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   scan:
-    uses: dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v6
+    uses: dhyey-qvh/enqrypta-actions/.github/workflows/enqrypta-opengrep.yml@enqrypta-opengrep-workflow-v7
     with:
       api-url: ${{ inputs.api-url }}
       notify-on-complete: ${{ inputs.notification-email != '' }}

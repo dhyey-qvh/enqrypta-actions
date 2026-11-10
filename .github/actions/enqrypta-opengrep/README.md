@@ -43,11 +43,11 @@ Schema `1.0` and v4 payloads are intentionally incompatible with v5. Publish the
 tag only after the API accepts schema `2.0`, then update consumers and OIDC trust as
 one coordinated cutover.
 
-## Schema 3.0 (unreleased, next major tag)
+## Schema 3.0 (v7)
 
-`main` emits findings schema `3.0`. Published tags `v1`–`v6` are unchanged and
-keep sending their own schema. Release the next tag only after the API that
-accepts `3.0` is deployed. Schema `3.0` adds, per finding:
+The v7 source emits findings schema `3.0`. Published tags `v1`–`v6` are
+unchanged and keep sending their own schema. Tag v7 only after the API that
+accepts `3.0` is deployed; the release order is in the repository README. Schema `3.0` adds, per finding:
 
 - `finding_kind`: `inventory` or `misuse`. Rules with IDs under
   `enqrypta.misuse.*` must set `metadata.finding_kind: misuse` and
