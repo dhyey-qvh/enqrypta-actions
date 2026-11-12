@@ -1,0 +1,163 @@
+{
+ "abstained": false,
+ "answers": {
+  "algorithm": "ml-kem",
+  "format": "der_base64",
+  "kind": "digest"
+ },
+ "basis": {
+  "algorithm": "model_estimate",
+  "format": "structural",
+  "kind": "model_estimate"
+ },
+ "confidence": {
+  "algorithm": 0.9406940694069407,
+  "format": 1.0,
+  "kind": 0.24942494249424943
+ },
+ "evidence": [
+  {
+   "alphabet": "text",
+   "also_declared": [],
+   "ambiguity": [],
+   "artifact_class": "certificate",
+   "asn1_oids": [
+    "sha256-with-rsa"
+   ],
+   "base64_neutral": false,
+   "ciphertext_like": false,
+   "container": "x509",
+   "containers_found": [
+    "x509"
+   ],
+   "declared_algorithm": "sha256-with-rsa",
+   "declared_components": [
+    "rsa",
+    "sha-256"
+   ],
+   "decoded_length": null,
+   "decoded_text": false,
+   "delimiters": [
+    "-",
+    "\n",
+    " "
+   ],
+   "der_wrapped": false,
+   "embedded": false,
+   "encoding": "base64",
+   "encodings_found": [],
+   "evidence_strength": 0.95,
+   "exact_algorithm_identifiable": true,
+   "is_private_key": false,
+   "is_public_key": false,
+   "length": 1114,
+   "malformed": false,
+   "padding": null,
+   "parse_errors": [],
+   "pem_labels": [
+    "CERTIFICATE"
+   ],
+   "possible_algorithms": [],
+   "prefixes": [
+    "-----BEGIN CERTIFICATE-----"
+   ],
+   "segment_count": 1,
+   "strict_decoding": {
+    "base32": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base58": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base64": {
+     "decoded_length": null,
+     "error": "alphabet_or_padding",
+     "ok": false
+    },
+    "base64url": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "hex": {
+     "decoded_length": null,
+     "error": "alphabet_or_length",
+     "ok": false
+    },
+    "url": {
+     "decoded_length": null,
+     "error": "no_escape",
+     "ok": false
+    }
+   },
+   "truncated": false,
+   "unidentifiable_algorithm": false,
+   "verified_algorithm": "sha256-with-rsa",
+   "verified_components": [
+    "rsa",
+    "sha-256"
+   ]
+  }
+ ],
+ "inventory": {
+  "curve": null,
+  "encrypted": false,
+  "key_algorithm": "rsa",
+  "key_bits": 2048,
+  "quantum_note": "Public-key algorithm breakable by a large quantum computer (Shor). Plan migration to ML-KEM or ML-DSA.",
+  "quantum_risk": "vulnerable",
+  "signature_algorithm": "sha256-with-rsa",
+  "signature_hash": "sha-256",
+  "source": "parsed_certificate"
+ },
+ "model": "product",
+ "model_version": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+ "probabilities": {
+  "algorithm": {
+   "aes": 0.0046004600460046,
+   "bcrypt": 0.004400440044004401,
+   "ec": 0.004000400040004,
+   "ed25519": 0.0042004200420042,
+   "hmac-sha256": 0.004100410041004101,
+   "md5": 0.0042004200420042,
+   "ml-dsa": 0.004300430043004301,
+   "ml-kem": 0.9406940694069407,
+   "rsa": 0.0078007800780078,
+   "sha-1": 0.0042004200420042,
+   "sha-256": 0.013001300130013,
+   "unknown": 0.0045004500450045
+  },
+  "format": {
+   "ciphertext": 0.0,
+   "der_base64": 1.0,
+   "hash": 0.0,
+   "jwt": 0.0,
+   "password_hash": 0.0,
+   "pem": 0.0,
+   "raw_key": 0.0,
+   "ssh": 0.0,
+   "unknown": 0.0
+  },
+  "kind": {
+   "certificate": 0.24942494249424943,
+   "ciphertext": 0.0013001300130013002,
+   "code_reference": 0.0017001700170017002,
+   "digest": 0.24942494249424943,
+   "not_crypto": 0.24942494249424943,
+   "private_key": 0.0013001300130013002,
+   "public_key": 0.0012001200120012,
+   "symmetric_key": 0.245024502450245,
+   "token": 0.0012001200120012
+  }
+ },
+ "source": {
+  "algorithm": "model",
+  "format": "parser",
+  "kind": "model"
+ },
+ "warnings": []
+}

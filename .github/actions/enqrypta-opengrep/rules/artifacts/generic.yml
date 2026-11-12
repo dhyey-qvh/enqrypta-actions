@@ -1,0 +1,59 @@
+# Crypto artifacts embedded in any file: PEM blocks, OpenSSH public keys and
+# JWTs. The rule only locates the artifact. Its algorithm, key size and whether
+# it is a private key come from the EnQrypta classification API, which parses
+# the extracted value; `algorithm: UNCLASSIFIED` is a placeholder that never
+# reaches the findings payload.
+rules:
+  - id: enqrypta.crypto.artifact.pem
+    languages: [generic]
+    severity: WARNING
+    message: Embedded PEM object; its key algorithm is inventoried for PQC migration analysis.
+    pattern-regex: -----BEGIN ([A-Z0-9 ]{3,40})-----[\s\S]{20,20000}?-----END \1-----
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.artifact.pem
+      artifact: pem
+      algorithm: UNCLASSIFIED
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.5
+
+  - id: enqrypta.crypto.artifact.ssh-public-key
+    languages: [generic]
+    severity: WARNING
+    message: Embedded OpenSSH public key; its algorithm is inventoried for PQC migration analysis.
+    pattern-regex: \b(?:ssh-rsa|ssh-ed25519|ssh-dss|ecdsa-sha2-nistp(?:256|384|521)) AAAA[A-Za-z0-9+/]{40,}={0,3}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.artifact.ssh-public-key
+      artifact: ssh
+      algorithm: UNCLASSIFIED
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.5
+
+  - id: enqrypta.crypto.artifact.jwt
+    languages: [generic]
+    severity: INFO
+    message: Embedded JSON Web Token; its signing algorithm is inventoried for PQC migration analysis.
+    pattern-regex: \beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.artifact.jwt
+      artifact: jwt
+      algorithm: UNCLASSIFIED
+      primitive: signature
+      usage: signing
+      confidence: 0.5
+
+  - id: enqrypta.misuse.artifact.private-key
+    languages: [generic]
+    severity: ERROR
+    message: A private key is stored in the repository; rotate it and load keys from a secret store.
+    pattern-regex: -----BEGIN ((?:[A-Z0-9]+ )*PRIVATE KEY)-----[\s\S]{20,20000}?-----END \1-----
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.artifact.private-key
+      finding_kind: misuse
+      cwe: CWE-321
+      artifact: pem
+      algorithm: PRIVATE-KEY
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.95

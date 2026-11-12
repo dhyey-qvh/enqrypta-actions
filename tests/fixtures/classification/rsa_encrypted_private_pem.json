@@ -1,0 +1,160 @@
+{
+ "abstained": false,
+ "answers": {
+  "algorithm": "ml-kem",
+  "format": "der_base64",
+  "kind": "private_key"
+ },
+ "basis": {
+  "algorithm": "model_estimate",
+  "format": "structural",
+  "kind": "model_estimate"
+ },
+ "confidence": {
+  "algorithm": 0.9535,
+  "format": 1.0,
+  "kind": 0.9677
+ },
+ "evidence": [
+  {
+   "alphabet": "text",
+   "also_declared": [],
+   "ambiguity": [],
+   "artifact_class": "private_key",
+   "asn1_oids": [
+    "pbes2",
+    "aes-256-cbc"
+   ],
+   "base64_neutral": false,
+   "ciphertext_like": false,
+   "container": "pkcs8",
+   "containers_found": [
+    "pkcs8"
+   ],
+   "declared_algorithm": "aes-256-cbc",
+   "declared_components": [
+    "aes"
+   ],
+   "decoded_length": null,
+   "decoded_text": false,
+   "delimiters": [
+    "-",
+    "\n",
+    " "
+   ],
+   "der_wrapped": false,
+   "embedded": false,
+   "encoding": "base64",
+   "encodings_found": [],
+   "evidence_strength": 0.95,
+   "exact_algorithm_identifiable": true,
+   "is_private_key": true,
+   "is_public_key": false,
+   "length": 1885,
+   "malformed": false,
+   "padding": null,
+   "parse_errors": [],
+   "pem_labels": [
+    "ENCRYPTED PRIVATE KEY"
+   ],
+   "possible_algorithms": [],
+   "prefixes": [
+    "-----BEGIN ENCRYPTED PRIVATE KEY-----"
+   ],
+   "segment_count": 1,
+   "strict_decoding": {
+    "base32": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base58": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base64": {
+     "decoded_length": null,
+     "error": "alphabet_or_padding",
+     "ok": false
+    },
+    "base64url": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "hex": {
+     "decoded_length": null,
+     "error": "alphabet_or_length",
+     "ok": false
+    },
+    "url": {
+     "decoded_length": null,
+     "error": "no_escape",
+     "ok": false
+    }
+   },
+   "truncated": false,
+   "unidentifiable_algorithm": false,
+   "verified_algorithm": null,
+   "verified_components": []
+  }
+ ],
+ "inventory": {
+  "curve": null,
+  "encrypted": true,
+  "key_algorithm": null,
+  "key_bits": null,
+  "quantum_note": "Declared symmetric or hash algorithm; Grover's algorithm only halves its strength.",
+  "quantum_risk": "low",
+  "signature_algorithm": null,
+  "signature_hash": null,
+  "source": "none"
+ },
+ "model": "product",
+ "model_version": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+ "probabilities": {
+  "algorithm": {
+   "aes": 0.0055,
+   "bcrypt": 0.0041,
+   "ec": 0.0038,
+   "ed25519": 0.004,
+   "hmac-sha256": 0.0038,
+   "md5": 0.004,
+   "ml-dsa": 0.004,
+   "ml-kem": 0.9535,
+   "rsa": 0.0051,
+   "sha-1": 0.0038,
+   "sha-256": 0.0042,
+   "unknown": 0.0042
+  },
+  "format": {
+   "ciphertext": 0.0,
+   "der_base64": 1.0,
+   "hash": 0.0,
+   "jwt": 0.0,
+   "password_hash": 0.0,
+   "pem": 0.0,
+   "raw_key": 0.0,
+   "ssh": 0.0,
+   "unknown": 0.0
+  },
+  "kind": {
+   "certificate": 0.0038,
+   "ciphertext": 0.0041,
+   "code_reference": 0.0039,
+   "digest": 0.004,
+   "not_crypto": 0.004,
+   "private_key": 0.9677,
+   "public_key": 0.0039,
+   "symmetric_key": 0.0046,
+   "token": 0.004
+  }
+ },
+ "source": {
+  "algorithm": "model",
+  "format": "parser",
+  "kind": "model"
+ },
+ "warnings": []
+}

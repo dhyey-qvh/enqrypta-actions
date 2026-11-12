@@ -47,6 +47,7 @@ V6_FALLBACK_IDS = {
 }
 # Prose and lockfiles mention algorithm names without using them.
 NON_CODE_GLOBS = {"*.md", "*.mdx", "*.rst", "*.txt", "*.lock", "*.sum", "package-lock.json"}
+ARTIFACT_RULES = RULES / "artifacts" / "generic.yml"
 ANNOTATION = re.compile(r"(?:#|//)\s*(ruleid|ok):\s*([a-z0-9.,\s-]+)$")
 
 
@@ -77,6 +78,30 @@ def fixture_annotations(pack: str, language: str) -> dict[str, set[str]]:
                 for rule_id in match.group(2).split(","):
                     seen.setdefault(rule_id.strip(), set()).add(match.group(1))
     return seen
+
+
+def artifact_rule_ids() -> set[str]:
+    return {rule["id"] for rule in yaml.safe_load(ARTIFACT_RULES.read_text())["rules"]}
+
+
+def test_artifact_rules_only_locate_values_for_the_classification_api():
+    normalizer = load_normalizer()
+    rules = yaml.safe_load(ARTIFACT_RULES.read_text())["rules"]
+    annotations = fixture_annotations("artifacts", "generic")
+    for rule in rules:
+        metadata = rule["metadata"]
+        assert rule["id"] == metadata["enqrypta_rule_id"]
+        assert rule["languages"] == ["generic"] and "pattern-regex" in rule
+        assert metadata["artifact"] in {"pem", "ssh", "jwt"}
+        assert normalizer.REQUIRED_METADATA <= metadata.keys()
+        assert annotations[rule["id"]] == {"ruleid", "ok"}
+        if metadata.get("finding_kind") == "misuse":
+            assert rule["id"].startswith("enqrypta.misuse.artifact.")
+            assert normalizer.CWE_PATTERN.match(metadata["cwe"])
+        else:
+            # Never published as-is: the API supplies the algorithm or the finding is dropped.
+            assert rule["id"].startswith("enqrypta.crypto.artifact.")
+            assert metadata["algorithm"] == "UNCLASSIFIED"
 
 
 def test_rule_packs_cover_the_five_languages():
@@ -151,7 +176,7 @@ def test_opengrep_corpus_passes_for_every_language_pack_rule():
         for result in report["results"].values()
         for rule_id, check in result["checks"].items()
     }
-    assert set(checks) == {rule["id"] for _, _, rule in pack_rules()}
+    assert set(checks) == {rule["id"] for _, _, rule in pack_rules()} | artifact_rule_ids()
     failed = {rule_id: check["matches"] for rule_id, check in checks.items() if not check["passed"]}
     assert failed == {}
 
@@ -160,7 +185,11 @@ def test_opengrep_corpus_passes_for_every_language_pack_rule():
 def test_scanning_the_corpus_normalizes_and_skips_fallback_rules(tmp_path):
     normalizer = load_normalizer()
     # Explicit file targets: directory scans skip ``tests/`` by Opengrep's default ignores.
-    fixtures = sorted(path.relative_to(REPO).as_posix() for path in FIXTURES.rglob("*.*"))
+    fixtures = sorted(
+        path.relative_to(REPO).as_posix()
+        for pack in LANGUAGE_PACKS
+        for path in (FIXTURES / pack).glob("*.*")
+    )
     raw = opengrep("--config", RULES.relative_to(REPO).as_posix(), *fixtures)
     assert raw["errors"] == []
     findings = [normalizer.normalize_result(result, REPO) for result in raw["results"]]

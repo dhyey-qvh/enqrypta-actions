@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -493,6 +494,11 @@ def main() -> None:
     parser.add_argument("--output", required=True)
     parser.add_argument("--scanner-version", required=True)
     parser.add_argument("--rules", help="rule file or directory used for the scan")
+    parser.add_argument(
+        "--classification-url",
+        default="",
+        help="EnQrypta classification API base URL; empty skips artifact classification",
+    )
     args = parser.parse_args()
 
     workspace = Path(os.environ["GITHUB_WORKSPACE"])
@@ -501,6 +507,11 @@ def main() -> None:
     findings = [normalize_result(result, workspace) for result in results]
     assign_site_keys(results, findings)
     assign_file_blob_shas(findings, workspace.resolve())
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import classify
+
+    classifier = classify.Classifier(args.classification_url) if args.classification_url else None
+    findings = classify.apply(results, findings, classifier, matched_span)
     output = {
         "schema_version": SCHEMA_VERSION,
         "scanner_version": args.scanner_version,

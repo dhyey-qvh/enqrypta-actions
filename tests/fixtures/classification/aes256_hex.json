@@ -1,0 +1,160 @@
+{
+ "abstained": false,
+ "answers": {
+  "algorithm": "unknown",
+  "format": "hash",
+  "kind": "not_crypto"
+ },
+ "basis": {
+  "algorithm": "not_identifiable",
+  "format": "structural",
+  "kind": "model_estimate"
+ },
+ "confidence": {
+  "algorithm": 1.0,
+  "format": 1.0,
+  "kind": 0.5098509850985099
+ },
+ "evidence": [
+  {
+   "alphabet": "hex",
+   "also_declared": [],
+   "ambiguity": [
+    "multiple_encodings",
+    "hex",
+    "base64",
+    "digest_or_hmac_or_short_ciphertext"
+   ],
+   "artifact_class": "digest_like",
+   "asn1_oids": [],
+   "base64_neutral": true,
+   "ciphertext_like": false,
+   "container": "none",
+   "containers_found": [],
+   "declared_algorithm": null,
+   "declared_components": [],
+   "decoded_length": 32,
+   "decoded_text": false,
+   "delimiters": [],
+   "der_wrapped": false,
+   "embedded": false,
+   "encoding": "hex",
+   "encodings_found": [
+    "hex",
+    "base64"
+   ],
+   "evidence_strength": 0.55,
+   "exact_algorithm_identifiable": false,
+   "is_private_key": false,
+   "is_public_key": false,
+   "length": 64,
+   "malformed": false,
+   "padding": null,
+   "parse_errors": [],
+   "pem_labels": [],
+   "possible_algorithms": [
+    "sha-256",
+    "sha3-256",
+    "hmac-sha256"
+   ],
+   "prefixes": [],
+   "segment_count": 1,
+   "strict_decoding": {
+    "base32": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base58": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base64": {
+     "decoded_length": 48,
+     "error": null,
+     "ok": true
+    },
+    "base64url": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "hex": {
+     "decoded_length": 32,
+     "error": null,
+     "ok": true
+    },
+    "url": {
+     "decoded_length": null,
+     "error": "no_escape",
+     "ok": false
+    }
+   },
+   "truncated": false,
+   "unidentifiable_algorithm": true,
+   "verified_algorithm": null,
+   "verified_components": []
+  }
+ ],
+ "inventory": {
+  "curve": null,
+  "encrypted": false,
+  "key_algorithm": null,
+  "key_bits": null,
+  "quantum_note": "No key or declared algorithm could be read.",
+  "quantum_risk": "unknown",
+  "signature_algorithm": null,
+  "signature_hash": null,
+  "source": "none"
+ },
+ "model": "product",
+ "model_version": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+ "probabilities": {
+  "algorithm": {
+   "aes": 0.0,
+   "bcrypt": 0.0,
+   "ec": 0.0,
+   "ed25519": 0.0,
+   "hmac-sha256": 0.0,
+   "md5": 0.0,
+   "ml-dsa": 0.0,
+   "ml-kem": 0.0,
+   "rsa": 0.0,
+   "sha-1": 0.0,
+   "sha-256": 0.0,
+   "unknown": 1.0
+  },
+  "format": {
+   "ciphertext": 0.0,
+   "der_base64": 0.0,
+   "hash": 0.5,
+   "jwt": 0.0,
+   "password_hash": 0.0,
+   "pem": 0.0,
+   "raw_key": 0.5,
+   "ssh": 0.0,
+   "unknown": 0.0
+  },
+  "kind": {
+   "certificate": 0.0019001900190019003,
+   "ciphertext": 0.47434743474347435,
+   "code_reference": 0.0029002900290029,
+   "digest": 0.0022002200220022005,
+   "not_crypto": 0.5098509850985099,
+   "private_key": 0.0023002300230023,
+   "public_key": 0.0021002100210021,
+   "symmetric_key": 0.0021002100210021,
+   "token": 0.0023002300230023
+  }
+ },
+ "source": {
+  "algorithm": "parser",
+  "format": "parser",
+  "kind": "model"
+ },
+ "warnings": [
+  "algorithm: rejected unsupported exact-algorithm claim: HMAC-SHA256",
+  "algorithm: exact algorithm is not identifiable"
+ ]
+}

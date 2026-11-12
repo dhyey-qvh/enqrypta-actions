@@ -1,0 +1,157 @@
+{
+ "abstained": false,
+ "answers": {
+  "algorithm": "unknown",
+  "format": "jwt",
+  "kind": "token"
+ },
+ "basis": {
+  "algorithm": "model_estimate",
+  "format": "structural",
+  "kind": "model_estimate"
+ },
+ "confidence": {
+  "algorithm": 0.9550955095509551,
+  "format": 1.0,
+  "kind": 0.4925
+ },
+ "evidence": [
+  {
+   "alphabet": "text",
+   "also_declared": [],
+   "ambiguity": [],
+   "artifact_class": "token",
+   "asn1_oids": [],
+   "base64_neutral": true,
+   "ciphertext_like": false,
+   "container": "jwt",
+   "containers_found": [
+    "jwt"
+   ],
+   "declared_algorithm": "HS256",
+   "declared_components": [
+    "hmac-sha256"
+   ],
+   "decoded_length": null,
+   "decoded_text": false,
+   "delimiters": [
+    "."
+   ],
+   "der_wrapped": false,
+   "embedded": false,
+   "encoding": "base64url",
+   "encodings_found": [],
+   "evidence_strength": 0.95,
+   "exact_algorithm_identifiable": true,
+   "is_private_key": false,
+   "is_public_key": false,
+   "jwt_header_fields": [
+    "alg",
+    "typ"
+   ],
+   "length": 123,
+   "malformed": false,
+   "padding": null,
+   "parse_errors": [],
+   "pem_labels": [],
+   "possible_algorithms": [],
+   "prefixes": [
+    "eyJhbGciOiJI"
+   ],
+   "segment_count": 3,
+   "strict_decoding": {
+    "base32": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base58": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base64": {
+     "decoded_length": null,
+     "error": "alphabet_or_padding",
+     "ok": false
+    },
+    "base64url": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "hex": {
+     "decoded_length": null,
+     "error": "alphabet_or_length",
+     "ok": false
+    },
+    "url": {
+     "decoded_length": null,
+     "error": "no_escape",
+     "ok": false
+    }
+   },
+   "truncated": false,
+   "unidentifiable_algorithm": false,
+   "verified_algorithm": null,
+   "verified_components": []
+  }
+ ],
+ "inventory": {
+  "curve": null,
+  "encrypted": false,
+  "key_algorithm": null,
+  "key_bits": null,
+  "quantum_note": "Declared symmetric or hash algorithm; Grover's algorithm only halves its strength.",
+  "quantum_risk": "low",
+  "signature_algorithm": "HS256",
+  "signature_hash": null,
+  "source": "jose_header"
+ },
+ "model": "product",
+ "model_version": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+ "probabilities": {
+  "algorithm": {
+   "aes": 0.004800480048004801,
+   "bcrypt": 0.004600460046004601,
+   "ec": 0.0039003900390039005,
+   "ed25519": 0.004800480048004801,
+   "hmac-sha256": 0.003700370037003701,
+   "md5": 0.0039003900390039005,
+   "ml-dsa": 0.003800380038003801,
+   "ml-kem": 0.003800380038003801,
+   "rsa": 0.0039003900390039005,
+   "sha-1": 0.003800380038003801,
+   "sha-256": 0.0039003900390039005,
+   "unknown": 0.9550955095509551
+  },
+  "format": {
+   "ciphertext": 0.0,
+   "der_base64": 0.0,
+   "hash": 0.0,
+   "jwt": 1.0,
+   "password_hash": 0.0,
+   "pem": 0.0,
+   "raw_key": 0.0,
+   "ssh": 0.0,
+   "unknown": 0.0
+  },
+  "kind": {
+   "certificate": 0.0019,
+   "ciphertext": 0.0021,
+   "code_reference": 0.4925,
+   "digest": 0.0023,
+   "not_crypto": 0.0024,
+   "private_key": 0.002,
+   "public_key": 0.0022,
+   "symmetric_key": 0.0021,
+   "token": 0.4925
+  }
+ },
+ "source": {
+  "algorithm": "model",
+  "format": "parser",
+  "kind": "model"
+ },
+ "warnings": []
+}
