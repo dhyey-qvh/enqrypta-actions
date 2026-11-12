@@ -69,6 +69,7 @@ The payload adds `rules_digest`, a SHA-256 over the rule files used.
 |---|---|
 | `rules/inventory/<language>.yml` | Crypto API calls in Java, Python, Go, JS/TS and Rust: algorithm, purpose (`usage`) and parameters |
 | `rules/misuse/<language>.yml` | Weak ciphers (DES, 3DES, RC4, Blowfish), ECB, MD5/SHA-1 in signatures or MACs, non-crypto RNG for secrets, constant IVs and keys, disabled TLS verification, TLS below 1.2. Each carries a CWE |
+| `rules/artifacts/generic.yml` | PEM blocks, OpenSSH public keys and JWTs in any file, classified by the classification API (below) |
 | `rules/fallback/generic.yml` | The v1–v6 name-based regex rules, unchanged IDs, for other source and config files (Kotlin, C#, C/C++, PHP, YAML, ...). Files of the five languages are excluded, as are prose and lockfiles (`*.md`, `*.txt`, `*.lock`, ...), where an algorithm name is a mention, not a use |
 
 Inventory rules only emit algorithms the API's catalog classifies (RSA, ECDSA,
@@ -116,6 +117,34 @@ APIs that fix a value may be set in metadata: `iv_generation`, `protocol`,
 `mode`, `padding`, `parameter_set`, and integer `key_size_bits`,
 `tag_length_bits`, `iv_length_bits`. Metadata overrides values guessed from the
 matched name.
+
+### Artifact classification
+
+`rules/artifacts/generic.yml` locates PEM blocks, OpenSSH public keys and JWTs in
+any file. The action sends each distinct value to the EnQrypta classification
+API (`classification-api-url`, on by default) and fills the finding from the
+API's parsed `inventory`: algorithm, key size, curve or parameter set, and
+whether it is a private key.
+
+- **What leaves the runner:** the key, certificate or SSH key text, private keys
+  included, and for a JWT only its header (`<header>..`). Nothing else from the
+  repository is sent, and the value is never written to the findings payload;
+  the finding carries its SHA-256 in `classification.artifact_sha256`.
+- **Parser facts only:** requests carry no questions, so the API's model is
+  never asked. A value the parser cannot identify is not reported as an
+  inventory finding.
+- **Private keys:** `enqrypta.misuse.artifact.private-key` (CWE-321) is reported
+  from the PEM label alone, so it survives an API outage; the API adds the
+  algorithm and key size when it can parse the key.
+- **Failure handling:** a failed or blocked request never fails the scan.
+  Requests stop after 3 consecutive failures; at most 200 distinct values of up
+  to 16 KB are sent per scan.
+- Set `classification-api-url: ""` to skip classification.
+
+Classified findings add `classification` (`status`, `source`, `model_version`,
+`artifact_sha256`, `is_private_key`, `encrypted`, `artifact_class`, `container`,
+`evidence_strength`). The API must accept this field before the tag that sends
+it is published.
 
 ### Rule corpus
 

@@ -13,6 +13,12 @@ inputs:
     description: SHA-256 for the pinned Linux x86_64 Opengrep binary.
     required: false
     default: "45bcd58440e397ed52c50e953ccf5948909ea77087c9186fc7d277216f62e319"
+  classification-api-url:
+    description: >-
+      EnQrypta classification API base URL. Keys, certificates and token headers
+      found in the repository are sent to it to identify their algorithm.
+    required: false
+    default: "https://classification-api.enqrypta.com"
   notify-on-complete:
     description: Send an EnQrypta scan-complete email after successful ingest.
     required: false
@@ -74,12 +80,14 @@ runs:
       env:
         OPENGREP_VERSION: ${{ inputs.opengrep-version }}
         ENQRYPTA_RULES: ${{ github.action_path }}/rules
+        ENQRYPTA_CLASSIFICATION_URL: ${{ inputs.classification-api-url }}
       run: |
         python "${{ github.action_path }}/scripts/normalize.py" \
           --input .enqrypta/opengrep.json \
           --output .enqrypta/enqrypta-findings.json \
           --scanner-version "${OPENGREP_VERSION}" \
-          --rules "${ENQRYPTA_RULES}"
+          --rules "${ENQRYPTA_RULES}" \
+          --classification-url "${ENQRYPTA_CLASSIFICATION_URL}"
 
     - name: Publish normalized findings
       shell: bash

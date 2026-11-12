@@ -1,0 +1,159 @@
+{
+ "abstained": false,
+ "answers": {
+  "algorithm": "ml-kem",
+  "format": "der_base64",
+  "kind": "digest"
+ },
+ "basis": {
+  "algorithm": "model_estimate",
+  "format": "structural",
+  "kind": "model_estimate"
+ },
+ "confidence": {
+  "algorithm": 0.9537,
+  "format": 1.0,
+  "kind": 0.9589
+ },
+ "evidence": [
+  {
+   "alphabet": "text",
+   "also_declared": [],
+   "ambiguity": [],
+   "artifact_class": "public_key",
+   "asn1_oids": [
+    "rsa"
+   ],
+   "base64_neutral": false,
+   "ciphertext_like": false,
+   "container": "pem",
+   "containers_found": [
+    "pem"
+   ],
+   "declared_algorithm": "rsa",
+   "declared_components": [
+    "rsa"
+   ],
+   "decoded_length": null,
+   "decoded_text": false,
+   "delimiters": [
+    "-",
+    "\n",
+    " "
+   ],
+   "der_wrapped": false,
+   "embedded": false,
+   "encoding": "base64",
+   "encodings_found": [],
+   "evidence_strength": 0.95,
+   "exact_algorithm_identifiable": true,
+   "is_private_key": false,
+   "is_public_key": true,
+   "length": 450,
+   "malformed": false,
+   "padding": null,
+   "parse_errors": [],
+   "pem_labels": [
+    "PUBLIC KEY"
+   ],
+   "possible_algorithms": [],
+   "prefixes": [
+    "-----BEGIN PUBLIC KEY-----"
+   ],
+   "segment_count": 1,
+   "strict_decoding": {
+    "base32": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base58": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base64": {
+     "decoded_length": null,
+     "error": "alphabet_or_padding",
+     "ok": false
+    },
+    "base64url": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "hex": {
+     "decoded_length": null,
+     "error": "alphabet_or_length",
+     "ok": false
+    },
+    "url": {
+     "decoded_length": null,
+     "error": "no_escape",
+     "ok": false
+    }
+   },
+   "truncated": false,
+   "unidentifiable_algorithm": false,
+   "verified_algorithm": null,
+   "verified_components": []
+  }
+ ],
+ "inventory": {
+  "curve": null,
+  "encrypted": false,
+  "key_algorithm": "rsa",
+  "key_bits": 2048,
+  "quantum_note": "Public-key algorithm breakable by a large quantum computer (Shor). Plan migration to ML-KEM or ML-DSA.",
+  "quantum_risk": "vulnerable",
+  "signature_algorithm": null,
+  "signature_hash": null,
+  "source": "parsed_public_key"
+ },
+ "model": "product",
+ "model_version": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+ "probabilities": {
+  "algorithm": {
+   "aes": 0.0042,
+   "bcrypt": 0.0043,
+   "ec": 0.004,
+   "ed25519": 0.0041,
+   "hmac-sha256": 0.004,
+   "md5": 0.0041,
+   "ml-dsa": 0.0042,
+   "ml-kem": 0.9537,
+   "rsa": 0.0048,
+   "sha-1": 0.004,
+   "sha-256": 0.0043,
+   "unknown": 0.0043
+  },
+  "format": {
+   "ciphertext": 0.0,
+   "der_base64": 1.0,
+   "hash": 0.0,
+   "jwt": 0.0,
+   "password_hash": 0.0,
+   "pem": 0.0,
+   "raw_key": 0.0,
+   "ssh": 0.0,
+   "unknown": 0.0
+  },
+  "kind": {
+   "certificate": 0.0037,
+   "ciphertext": 0.0047,
+   "code_reference": 0.0068,
+   "digest": 0.9589,
+   "not_crypto": 0.0049,
+   "private_key": 0.0043,
+   "public_key": 0.0061,
+   "symmetric_key": 0.005,
+   "token": 0.0056
+  }
+ },
+ "source": {
+  "algorithm": "model",
+  "format": "parser",
+  "kind": "model"
+ },
+ "warnings": []
+}

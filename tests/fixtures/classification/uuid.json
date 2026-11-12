@@ -1,0 +1,151 @@
+{
+ "abstained": false,
+ "answers": {
+  "algorithm": "unknown",
+  "format": "pem",
+  "kind": "not_crypto"
+ },
+ "basis": {
+  "algorithm": "model_estimate",
+  "format": "model_estimate",
+  "kind": "model_estimate"
+ },
+ "confidence": {
+  "algorithm": 0.9561956195619562,
+  "format": 0.9647035296470353,
+  "kind": 0.964
+ },
+ "evidence": [
+  {
+   "alphabet": "base64url",
+   "also_declared": [],
+   "ambiguity": [],
+   "artifact_class": "random",
+   "asn1_oids": [],
+   "base64_neutral": false,
+   "ciphertext_like": false,
+   "container": "none",
+   "containers_found": [],
+   "declared_algorithm": null,
+   "declared_components": [],
+   "decoded_length": null,
+   "decoded_text": false,
+   "delimiters": [
+    "-"
+   ],
+   "der_wrapped": false,
+   "embedded": false,
+   "encoding": "unknown",
+   "encodings_found": [
+    "base64url"
+   ],
+   "evidence_strength": 0.25,
+   "exact_algorithm_identifiable": false,
+   "is_private_key": false,
+   "is_public_key": false,
+   "length": 36,
+   "malformed": false,
+   "padding": null,
+   "parse_errors": [],
+   "pem_labels": [],
+   "possible_algorithms": [],
+   "prefixes": [
+    "3f2b"
+   ],
+   "segment_count": 1,
+   "strict_decoding": {
+    "base32": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base58": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base64": {
+     "decoded_length": null,
+     "error": "alphabet_or_padding",
+     "ok": false
+    },
+    "base64url": {
+     "decoded_length": 27,
+     "error": null,
+     "ok": true
+    },
+    "hex": {
+     "decoded_length": null,
+     "error": "alphabet_or_length",
+     "ok": false
+    },
+    "url": {
+     "decoded_length": null,
+     "error": "no_escape",
+     "ok": false
+    }
+   },
+   "truncated": false,
+   "unidentifiable_algorithm": true,
+   "verified_algorithm": null,
+   "verified_components": []
+  }
+ ],
+ "inventory": {
+  "curve": null,
+  "encrypted": false,
+  "key_algorithm": null,
+  "key_bits": null,
+  "quantum_note": "No key or declared algorithm could be read.",
+  "quantum_risk": "unknown",
+  "signature_algorithm": null,
+  "signature_hash": null,
+  "source": "none"
+ },
+ "model": "product",
+ "model_version": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+ "probabilities": {
+  "algorithm": {
+   "aes": 0.0039003900390039005,
+   "bcrypt": 0.005000500050005001,
+   "ec": 0.004000400040004001,
+   "ed25519": 0.0039003900390039005,
+   "hmac-sha256": 0.0039003900390039005,
+   "md5": 0.0039003900390039005,
+   "ml-dsa": 0.004100410041004101,
+   "ml-kem": 0.003800380038003801,
+   "rsa": 0.003800380038003801,
+   "sha-1": 0.003700370037003701,
+   "sha-256": 0.003800380038003801,
+   "unknown": 0.9561956195619562
+  },
+  "format": {
+   "ciphertext": 0.004199580041995801,
+   "der_base64": 0.0045995400459954,
+   "hash": 0.0045995400459954,
+   "jwt": 0.004199580041995801,
+   "password_hash": 0.004399560043995601,
+   "pem": 0.9647035296470353,
+   "raw_key": 0.004199580041995801,
+   "ssh": 0.004199580041995801,
+   "unknown": 0.004899510048995101
+  },
+  "kind": {
+   "certificate": 0.0037,
+   "ciphertext": 0.0064,
+   "code_reference": 0.006,
+   "digest": 0.004,
+   "not_crypto": 0.964,
+   "private_key": 0.0039,
+   "public_key": 0.0039,
+   "symmetric_key": 0.0039,
+   "token": 0.0042
+  }
+ },
+ "source": {
+  "algorithm": "model",
+  "format": "model",
+  "kind": "model"
+ },
+ "warnings": []
+}

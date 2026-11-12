@@ -1,0 +1,159 @@
+{
+ "abstained": false,
+ "answers": {
+  "algorithm": "ml-kem",
+  "format": "der_base64",
+  "kind": "code_reference"
+ },
+ "basis": {
+  "algorithm": "model_estimate",
+  "format": "structural",
+  "kind": "model_estimate"
+ },
+ "confidence": {
+  "algorithm": 0.955104489551045,
+  "format": 1.0,
+  "kind": 0.1972
+ },
+ "evidence": [
+  {
+   "alphabet": "text",
+   "also_declared": [],
+   "ambiguity": [],
+   "artifact_class": "public_key",
+   "asn1_oids": [
+    "ml-dsa-65"
+   ],
+   "base64_neutral": false,
+   "ciphertext_like": false,
+   "container": "pem",
+   "containers_found": [
+    "pem"
+   ],
+   "declared_algorithm": "ml-dsa-65",
+   "declared_components": [
+    "ml-dsa-65"
+   ],
+   "decoded_length": null,
+   "decoded_text": false,
+   "delimiters": [
+    "-",
+    "\n",
+    " "
+   ],
+   "der_wrapped": false,
+   "embedded": false,
+   "encoding": "base64",
+   "encodings_found": [],
+   "evidence_strength": 0.95,
+   "exact_algorithm_identifiable": true,
+   "is_private_key": false,
+   "is_public_key": true,
+   "length": 2725,
+   "malformed": false,
+   "padding": null,
+   "parse_errors": [],
+   "pem_labels": [
+    "PUBLIC KEY"
+   ],
+   "possible_algorithms": [],
+   "prefixes": [
+    "-----BEGIN PUBLIC KEY-----"
+   ],
+   "segment_count": 1,
+   "strict_decoding": {
+    "base32": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base58": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "base64": {
+     "decoded_length": null,
+     "error": "alphabet_or_padding",
+     "ok": false
+    },
+    "base64url": {
+     "decoded_length": null,
+     "error": "alphabet",
+     "ok": false
+    },
+    "hex": {
+     "decoded_length": null,
+     "error": "alphabet_or_length",
+     "ok": false
+    },
+    "url": {
+     "decoded_length": null,
+     "error": "no_escape",
+     "ok": false
+    }
+   },
+   "truncated": false,
+   "unidentifiable_algorithm": false,
+   "verified_algorithm": null,
+   "verified_components": []
+  }
+ ],
+ "inventory": {
+  "curve": null,
+  "encrypted": false,
+  "key_algorithm": "ml-dsa",
+  "key_bits": null,
+  "quantum_note": "Post-quantum algorithm (NIST FIPS 203/204/205 family).",
+  "quantum_risk": "resistant",
+  "signature_algorithm": null,
+  "signature_hash": null,
+  "source": "parsed_public_key"
+ },
+ "model": "product",
+ "model_version": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+ "probabilities": {
+  "algorithm": {
+   "aes": 0.0040995900409959,
+   "bcrypt": 0.0040995900409959,
+   "ec": 0.0037996200379962005,
+   "ed25519": 0.003999600039996,
+   "hmac-sha256": 0.0038996100389961,
+   "md5": 0.003999600039996,
+   "ml-dsa": 0.0040995900409959,
+   "ml-kem": 0.955104489551045,
+   "rsa": 0.0045995400459954,
+   "sha-1": 0.0038996100389961,
+   "sha-256": 0.0040995900409959,
+   "unknown": 0.004299570042995701
+  },
+  "format": {
+   "ciphertext": 0.0,
+   "der_base64": 1.0,
+   "hash": 0.0,
+   "jwt": 0.0,
+   "password_hash": 0.0,
+   "pem": 0.0,
+   "raw_key": 0.0,
+   "ssh": 0.0,
+   "unknown": 0.0
+  },
+  "kind": {
+   "certificate": 0.0759,
+   "ciphertext": 0.0877,
+   "code_reference": 0.1972,
+   "digest": 0.0995,
+   "not_crypto": 0.0877,
+   "private_key": 0.0831,
+   "public_key": 0.0977,
+   "symmetric_key": 0.1835,
+   "token": 0.0877
+  }
+ },
+ "source": {
+  "algorithm": "model",
+  "format": "parser",
+  "kind": "model"
+ },
+ "warnings": []
+}
