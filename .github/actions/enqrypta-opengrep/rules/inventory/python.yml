@@ -1,0 +1,270 @@
+# Python crypto inventory: cryptography (hazmat), PyCryptodome/PyCryptodomex,
+# hashlib and liboqs-python. Purpose comes from the API that is called.
+rules:
+  - id: enqrypta.crypto.python.rsa-keygen
+    languages: [python]
+    severity: WARNING
+    message: RSA key generation requires PQC migration review.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key(..., key_size=$KEY_SIZE, ...)
+      - pattern: cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key($EXPONENT, $KEY_SIZE, ...)
+      - pattern: Crypto.PublicKey.RSA.generate($KEY_SIZE, ...)
+      - pattern: Cryptodome.PublicKey.RSA.generate($KEY_SIZE, ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.rsa-keygen
+      algorithm: RSA
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.9
+      language: python
+      parameters: [key_size_bits]
+
+  - id: enqrypta.crypto.python.rsa-encrypt
+    languages: [python]
+    severity: WARNING
+    message: RSA encryption requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: $KEY.encrypt($MESSAGE, cryptography.hazmat.primitives.asymmetric.padding.$PADDING(...))
+      - pattern: $KEY.decrypt($MESSAGE, cryptography.hazmat.primitives.asymmetric.padding.$PADDING(...))
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.rsa-encrypt
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+      parameters: [padding]
+
+  - id: enqrypta.crypto.python.rsa-encrypt-oaep
+    languages: [python]
+    severity: WARNING
+    message: RSA-OAEP encryption requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: Crypto.Cipher.PKCS1_OAEP.new(...)
+      - pattern: Cryptodome.Cipher.PKCS1_OAEP.new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.rsa-encrypt-oaep
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+      padding: OAEP
+
+  - id: enqrypta.crypto.python.rsa-sign
+    languages: [python]
+    severity: WARNING
+    message: RSA signatures require PQC signature migration.
+    pattern-either:
+      - pattern: $KEY.sign($MESSAGE, cryptography.hazmat.primitives.asymmetric.padding.$PADDING(...), $HASH)
+      - pattern: $KEY.verify($SIGNATURE, $MESSAGE, cryptography.hazmat.primitives.asymmetric.padding.$PADDING(...), $HASH)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.rsa-sign
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: python
+      parameters: [padding]
+
+  - id: enqrypta.crypto.python.rsa-sign-pycryptodome
+    languages: [python]
+    severity: WARNING
+    message: RSA signatures require PQC signature migration.
+    pattern-either:
+      - pattern: Crypto.Signature.pkcs1_15.new(...)
+      - pattern: Cryptodome.Signature.pkcs1_15.new(...)
+      - pattern: Crypto.Signature.pss.new(...)
+      - pattern: Cryptodome.Signature.pss.new(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.rsa-sign-pycryptodome
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.crypto.python.ecdsa-sign
+    languages: [python]
+    severity: WARNING
+    message: ECDSA signatures require PQC signature migration.
+    pattern-either:
+      - pattern: $KEY.sign($MESSAGE, cryptography.hazmat.primitives.asymmetric.ec.ECDSA(...))
+      - pattern: $KEY.verify($SIGNATURE, $MESSAGE, cryptography.hazmat.primitives.asymmetric.ec.ECDSA(...))
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.ecdsa-sign
+      algorithm: ECDSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.crypto.python.ecdh
+    languages: [python]
+    severity: WARNING
+    message: ECDH key agreement requires PQC key-establishment migration.
+    pattern: $KEY.exchange(cryptography.hazmat.primitives.asymmetric.ec.ECDH(), $PEER)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.ecdh
+      algorithm: ECDH
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.crypto.python.x25519
+    languages: [python]
+    severity: WARNING
+    message: X25519 key agreement requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.asymmetric.x25519.X25519PrivateKey.generate()
+      - pattern: cryptography.hazmat.primitives.asymmetric.x25519.X25519PrivateKey.from_private_bytes(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.x25519
+      algorithm: X25519
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: python
+      parameter_set: X25519
+
+  - id: enqrypta.crypto.python.ed25519
+    languages: [python]
+    severity: WARNING
+    message: Ed25519 signatures require PQC signature migration.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey.generate()
+      - pattern: cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey.from_private_bytes(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.ed25519
+      algorithm: ED25519
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: python
+      parameter_set: Ed25519
+
+  - id: enqrypta.crypto.python.dh
+    languages: [python]
+    severity: WARNING
+    message: Finite-field Diffie-Hellman requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.asymmetric.dh.generate_parameters(..., key_size=$KEY_SIZE, ...)
+      - pattern: cryptography.hazmat.primitives.asymmetric.dh.generate_parameters($GENERATOR, $KEY_SIZE, ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.dh
+      algorithm: DH
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: python
+      parameters: [key_size_bits]
+
+  - id: enqrypta.crypto.python.aes
+    languages: [python]
+    severity: INFO
+    message: AES usage inventoried for PQC migration analysis.
+    pattern-either:
+      - pattern: cryptography.hazmat.primitives.ciphers.Cipher(cryptography.hazmat.primitives.ciphers.algorithms.AES(...), cryptography.hazmat.primitives.ciphers.modes.$MODE(...), ...)
+      - pattern: Crypto.Cipher.AES.new($KEY, $MODE, ...)
+      - pattern: Cryptodome.Cipher.AES.new($KEY, $MODE, ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.aes
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+      parameters: [mode]
+
+  - id: enqrypta.crypto.python.aes-gcm
+    languages: [python]
+    severity: INFO
+    message: AES-GCM usage inventoried for PQC migration analysis.
+    pattern: cryptography.hazmat.primitives.ciphers.aead.AESGCM(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.aes-gcm
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: python
+      mode: GCM
+
+  - id: enqrypta.crypto.python.sha1
+    languages: [python]
+    severity: ERROR
+    message: SHA-1 is deprecated and requires replacement.
+    pattern-either:
+      - pattern: hashlib.sha1(...)
+      - pattern: cryptography.hazmat.primitives.hashes.SHA1()
+      - pattern: Crypto.Hash.SHA1.new(...)
+      - pattern: Cryptodome.Hash.SHA1.new(...)
+      - patterns:
+          - pattern: hashlib.new($NAME, ...)
+          - metavariable-regex:
+              metavariable: $NAME
+              regex: (?i)^['"]sha-?1['"]$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.sha1
+      algorithm: SHA-1
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.crypto.python.md5
+    languages: [python]
+    severity: ERROR
+    message: MD5 is deprecated and requires replacement.
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: cryptography.hazmat.primitives.hashes.MD5()
+      - pattern: Crypto.Hash.MD5.new(...)
+      - pattern: Cryptodome.Hash.MD5.new(...)
+      - patterns:
+          - pattern: hashlib.new($NAME, ...)
+          - metavariable-regex:
+              metavariable: $NAME
+              regex: (?i)^['"]md5['"]$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.md5
+      algorithm: MD5
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.crypto.python.ml-kem
+    languages: [python]
+    severity: INFO
+    message: ML-KEM usage inventoried as post-quantum key establishment.
+    patterns:
+      - pattern: oqs.KeyEncapsulation($PARAMETER_SET, ...)
+      - metavariable-regex:
+          metavariable: $PARAMETER_SET
+          regex: (?i)^['"](ML-KEM|Kyber)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.ml-kem
+      algorithm: ML-KEM
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: python
+
+  - id: enqrypta.crypto.python.ml-dsa
+    languages: [python]
+    severity: INFO
+    message: ML-DSA usage inventoried as a post-quantum signature.
+    patterns:
+      - pattern: oqs.Signature($PARAMETER_SET, ...)
+      - metavariable-regex:
+          metavariable: $PARAMETER_SET
+          regex: (?i)^['"](ML-DSA|Dilithium)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.ml-dsa
+      algorithm: ML-DSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: python

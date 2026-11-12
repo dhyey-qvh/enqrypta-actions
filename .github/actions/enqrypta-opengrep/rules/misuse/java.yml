@@ -1,0 +1,251 @@
+# Java crypto misuse. Findings are stored as misuse (never crypto assets).
+rules:
+  - id: enqrypta.misuse.java.weak-cipher-3des
+    languages: [java]
+    severity: ERROR
+    message: Triple DES is deprecated; use AES-GCM.
+    patterns:
+      - pattern: Cipher.getInstance($TRANSFORMATION, ...)
+      - metavariable-regex:
+          metavariable: $TRANSFORMATION
+          regex: (?i)^"(DESede|TripleDES|3DES)(/|")
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.weak-cipher-3des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: 3DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.misuse.java.weak-cipher-des
+    languages: [java]
+    severity: ERROR
+    message: DES is broken; use AES-GCM.
+    patterns:
+      - pattern: Cipher.getInstance($TRANSFORMATION, ...)
+      - metavariable-regex:
+          metavariable: $TRANSFORMATION
+          regex: (?i)^"DES(/|")
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.weak-cipher-des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.misuse.java.weak-cipher-rc4
+    languages: [java]
+    severity: ERROR
+    message: RC4 is broken; use AES-GCM or ChaCha20-Poly1305.
+    patterns:
+      - pattern: Cipher.getInstance($TRANSFORMATION, ...)
+      - metavariable-regex:
+          metavariable: $TRANSFORMATION
+          regex: (?i)^"(RC4|ARCFOUR)(/|")
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.weak-cipher-rc4
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: RC4
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.misuse.java.weak-cipher-blowfish
+    languages: [java]
+    severity: WARNING
+    message: Blowfish has a 64-bit block; use AES-GCM.
+    patterns:
+      - pattern: Cipher.getInstance($TRANSFORMATION, ...)
+      - metavariable-regex:
+          metavariable: $TRANSFORMATION
+          regex: (?i)^"Blowfish(/|")
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.weak-cipher-blowfish
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: BLOWFISH
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.misuse.java.ecb-mode
+    languages: [java]
+    severity: WARNING
+    message: ECB mode (the JCA default for "AES") leaks plaintext patterns; use AES/GCM/NoPadding.
+    patterns:
+      - pattern: Cipher.getInstance($TRANSFORMATION, ...)
+      - metavariable-regex:
+          metavariable: $TRANSFORMATION
+          regex: (?i)^"AES(_(128|192|256))?(/ECB/[^"]*)?"$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.ecb-mode
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: java
+      mode: ECB
+
+  - id: enqrypta.misuse.java.sha1-signature
+    languages: [java]
+    severity: ERROR
+    message: SHA-1 signatures are forgeable; sign with SHA-256 or stronger.
+    patterns:
+      - pattern: Signature.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^"SHA-?1with
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.sha1-signature
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: SHA-1
+      primitive: hash
+      usage: signing
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.misuse.java.md5-signature-or-mac
+    languages: [java]
+    severity: ERROR
+    message: MD5 in a signature or MAC is unsafe; use SHA-256 or stronger.
+    patterns:
+      - pattern-either:
+          - pattern: Signature.getInstance($ALGORITHM, ...)
+          - pattern: Mac.getInstance($ALGORITHM, ...)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: (?i)^"(MD5with[A-Z0-9]+|HmacMD5)"$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.md5-signature-or-mac
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: MD5
+      primitive: hash
+      usage: mac
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.misuse.java.insecure-random
+    languages: [java]
+    severity: ERROR
+    message: java.util.Random is not cryptographically secure; use SecureRandom.
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      $RNG = new Random(...);
+                      ...
+                  - pattern-inside: |
+                      $RNG = new java.util.Random(...);
+                      ...
+              - pattern: $RNG.nextBytes($BUFFER)
+          - pattern: new Random(...).nextBytes($BUFFER)
+          - pattern: ThreadLocalRandom.current().nextBytes($BUFFER)
+      - metavariable-regex:
+          metavariable: $BUFFER
+          regex: ^(?:(?:.*_)?(?:key|iv|nonce|salt|token|secret|otp|password)|.*(?:Key|Iv|IV|Nonce|Salt|Token|Secret|Otp|Password)|(?:.*_)?(?:KEY|IV|NONCE|SALT|TOKEN|SECRET|OTP|PASSWORD))s?(?:[A-Z0-9_].*)?$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.insecure-random
+      finding_kind: misuse
+      cwe: CWE-338
+      algorithm: PRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: java
+
+  - id: enqrypta.misuse.java.hardcoded-iv
+    languages: [java]
+    severity: ERROR
+    message: A constant IV or nonce breaks confidentiality; generate a fresh random value.
+    pattern-either:
+      - pattern: new IvParameterSpec("...".getBytes(...), ...)
+      - pattern: new IvParameterSpec(new byte[] {...}, ...)
+      - pattern: new IvParameterSpec(new byte[$N], ...)
+      - pattern: new GCMParameterSpec($TAG_BITS, "...".getBytes(...), ...)
+      - pattern: new GCMParameterSpec($TAG_BITS, new byte[] {...}, ...)
+      - pattern: new GCMParameterSpec($TAG_BITS, new byte[$N], ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.hardcoded-iv
+      finding_kind: misuse
+      cwe: CWE-329
+      algorithm: SYMMETRIC-CIPHER
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: java
+      iv_generation: hardcoded
+
+  - id: enqrypta.misuse.java.hardcoded-key
+    languages: [java]
+    severity: ERROR
+    message: A key embedded in source code is exposed; load it from a key store or secret manager.
+    pattern-either:
+      - pattern: new SecretKeySpec("...".getBytes(...), ...)
+      - pattern: new SecretKeySpec(new byte[] {...}, ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.hardcoded-key
+      finding_kind: misuse
+      cwe: CWE-321
+      algorithm: SYMMETRIC-KEY
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: java
+
+  - id: enqrypta.misuse.java.tls-verify-disabled
+    languages: [java]
+    severity: ERROR
+    message: TLS certificate or hostname verification is disabled.
+    pattern-either:
+      - pattern: |
+          public void checkServerTrusted(X509Certificate[] $CHAIN, String $AUTH) {}
+      - pattern: |
+          public void checkServerTrusted(X509Certificate[] $CHAIN, String $AUTH) throws $EX {}
+      - pattern: |
+          public boolean verify(String $HOST, SSLSession $SESSION) { return true; }
+      - pattern: $CONN.setHostnameVerifier(($HOST, $SESSION) -> true)
+      - pattern: HttpsURLConnection.setDefaultHostnameVerifier(($HOST, $SESSION) -> true)
+      - pattern: $BUILDER.hostnameVerifier(($HOST, $SESSION) -> true)
+      - pattern: NoopHostnameVerifier.INSTANCE
+      - pattern: new NoopHostnameVerifier()
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.tls-verify-disabled
+      finding_kind: misuse
+      cwe: CWE-295
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: java
+
+  - id: enqrypta.misuse.java.weak-tls-version
+    languages: [java]
+    severity: ERROR
+    message: SSL and TLS 1.0/1.1 are deprecated; require TLS 1.2 or later.
+    patterns:
+      - pattern: SSLContext.getInstance($PROTOCOL, ...)
+      - metavariable-regex:
+          metavariable: $PROTOCOL
+          regex: ^"(SSL|SSLv2|SSLv3|TLSv1|TLSv1\.1)"$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.java.weak-tls-version
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: java

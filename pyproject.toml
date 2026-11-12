@@ -4,6 +4,8 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+# Rule fixtures are intentionally unidiomatic code samples, not project code.
+extend-exclude = ["tests/rules"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

@@ -1,0 +1,212 @@
+# Go crypto misuse. Findings are stored as misuse (never crypto assets).
+# Go has no ECB mode API, so there is no ECB rule.
+rules:
+  - id: enqrypta.misuse.go.weak-cipher-3des
+    languages: [go]
+    severity: ERROR
+    message: Triple DES is deprecated; use AES-GCM.
+    pattern: des.NewTripleDESCipher(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.weak-cipher-3des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: 3DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.misuse.go.weak-cipher-des
+    languages: [go]
+    severity: ERROR
+    message: DES is broken; use AES-GCM.
+    pattern: des.NewCipher(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.weak-cipher-des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.misuse.go.weak-cipher-rc4
+    languages: [go]
+    severity: ERROR
+    message: RC4 is broken; use AES-GCM or ChaCha20-Poly1305.
+    pattern: rc4.NewCipher(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.weak-cipher-rc4
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: RC4
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.misuse.go.weak-cipher-blowfish
+    languages: [go]
+    severity: WARNING
+    message: Blowfish has a 64-bit block; use AES-GCM.
+    pattern: blowfish.NewCipher(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.weak-cipher-blowfish
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: BLOWFISH
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.misuse.go.sha1-signature
+    languages: [go]
+    severity: ERROR
+    message: SHA-1 signatures are forgeable; sign with SHA-256 or stronger.
+    pattern-either:
+      - pattern: rsa.SignPKCS1v15($RAND, $KEY, crypto.SHA1, $DIGEST)
+      - pattern: rsa.SignPSS($RAND, $KEY, crypto.SHA1, ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.sha1-signature
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: SHA-1
+      primitive: hash
+      usage: signing
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.misuse.go.md5-signature-or-mac
+    languages: [go]
+    severity: ERROR
+    message: MD5 in a signature or MAC is unsafe; use SHA-256 or stronger.
+    pattern-either:
+      - pattern: hmac.New(md5.New, $KEY)
+      - pattern: rsa.SignPKCS1v15($RAND, $KEY, crypto.MD5, $DIGEST)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.md5-signature-or-mac
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: MD5
+      primitive: hash
+      usage: mac
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.misuse.go.insecure-random
+    languages: [go]
+    severity: ERROR
+    message: math/rand is not cryptographically secure; use crypto/rand.
+    # Restricted to files that import math/rand and not crypto/rand: Go name
+    # resolution cannot tell the two packages apart when both are imported.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              import "math/rand"
+              ...
+          - pattern-inside: |
+              import "math/rand/v2"
+              ...
+      - pattern-not-inside: |
+          import "crypto/rand"
+          ...
+      - pattern-either:
+          - pattern: rand.Read($BUFFER)
+          - patterns:
+              - pattern-either:
+                  - pattern: $BUFFER := rand.$FUNC(...)
+                  - pattern: $BUFFER = rand.$FUNC(...)
+              - metavariable-regex:
+                  metavariable: $BUFFER
+                  regex: ^(?:(?:.*_)?(?:key|iv|nonce|salt|token|secret|otp|password)|.*(?:Key|Iv|IV|Nonce|Salt|Token|Secret|Otp|Password)|(?:.*_)?(?:KEY|IV|NONCE|SALT|TOKEN|SECRET|OTP|PASSWORD))s?(?:[A-Z0-9_].*)?$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.insecure-random
+      finding_kind: misuse
+      cwe: CWE-338
+      algorithm: PRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: go
+
+  - id: enqrypta.misuse.go.hardcoded-iv
+    languages: [go]
+    severity: ERROR
+    message: A constant IV or nonce breaks confidentiality; generate a fresh random value.
+    pattern-either:
+      - pattern: cipher.NewCBCEncrypter($BLOCK, []byte("..."))
+      - pattern: cipher.NewCBCDecrypter($BLOCK, []byte("..."))
+      - pattern: cipher.NewCTR($BLOCK, []byte("..."))
+      - pattern: cipher.NewCBCEncrypter($BLOCK, make([]byte, $N))
+      - pattern: cipher.NewCTR($BLOCK, make([]byte, $N))
+      - pattern: $AEAD.Seal($DST, []byte("..."), ...)
+      - pattern: $AEAD.Seal($DST, make([]byte, $N), ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.hardcoded-iv
+      finding_kind: misuse
+      cwe: CWE-329
+      algorithm: SYMMETRIC-CIPHER
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: go
+      iv_generation: hardcoded
+
+  - id: enqrypta.misuse.go.hardcoded-key
+    languages: [go]
+    severity: ERROR
+    message: A key embedded in source code is exposed; load it from a secret store.
+    pattern-either:
+      - pattern: aes.NewCipher([]byte("..."))
+      - pattern: hmac.New($HASH, []byte("..."))
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.hardcoded-key
+      finding_kind: misuse
+      cwe: CWE-321
+      algorithm: SYMMETRIC-KEY
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: go
+
+  - id: enqrypta.misuse.go.tls-verify-disabled
+    languages: [go]
+    severity: ERROR
+    message: TLS certificate verification is disabled (InsecureSkipVerify).
+    pattern-either:
+      - pattern: 'tls.Config{..., InsecureSkipVerify: true, ...}'
+      - pattern: $CONFIG.InsecureSkipVerify = true
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.tls-verify-disabled
+      finding_kind: misuse
+      cwe: CWE-295
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.misuse.go.weak-tls-version
+    languages: [go]
+    severity: ERROR
+    message: SSL 3.0, TLS 1.0 and TLS 1.1 are deprecated; require TLS 1.2 or later.
+    patterns:
+      - pattern-either:
+          - pattern: 'tls.Config{..., MinVersion: $PROTOCOL, ...}'
+          - pattern: 'tls.Config{..., MaxVersion: $PROTOCOL, ...}'
+          - pattern: $CONFIG.MinVersion = $PROTOCOL
+      - metavariable-regex:
+          metavariable: $PROTOCOL
+          regex: ^tls\.Version(SSL30|TLS10|TLS11)$
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.weak-tls-version
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: go
+      parameters: [protocol]

@@ -1,0 +1,267 @@
+# Go crypto inventory: standard library crypto/* (rsa, ecdsa, ecdh, ed25519,
+# aes, cipher, sha1, md5, mlkem) and Cloudflare CIRCL ML-DSA.
+rules:
+  - id: enqrypta.crypto.go.rsa-keygen
+    languages: [go]
+    severity: WARNING
+    message: RSA key generation requires PQC migration review.
+    pattern: rsa.GenerateKey($RAND, $KEY_SIZE)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.rsa-keygen
+      algorithm: RSA
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.95
+      language: go
+      parameters: [key_size_bits]
+
+  - id: enqrypta.crypto.go.rsa-encrypt-oaep
+    languages: [go]
+    severity: WARNING
+    message: RSA-OAEP encryption requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: rsa.EncryptOAEP(...)
+      - pattern: rsa.DecryptOAEP(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.rsa-encrypt-oaep
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.95
+      language: go
+      padding: OAEP
+
+  - id: enqrypta.crypto.go.rsa-encrypt-pkcs1v15
+    languages: [go]
+    severity: WARNING
+    message: RSA PKCS#1 v1.5 encryption requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: rsa.EncryptPKCS1v15(...)
+      - pattern: rsa.DecryptPKCS1v15(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.rsa-encrypt-pkcs1v15
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.95
+      language: go
+      padding: PKCS1v15
+
+  - id: enqrypta.crypto.go.rsa-sign
+    languages: [go]
+    severity: WARNING
+    message: RSA signatures require PQC signature migration.
+    pattern-either:
+      - pattern: rsa.SignPKCS1v15(...)
+      - pattern: rsa.VerifyPKCS1v15(...)
+      - pattern: rsa.SignPSS(...)
+      - pattern: rsa.VerifyPSS(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.rsa-sign
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.crypto.go.ecdsa-keygen
+    languages: [go]
+    severity: WARNING
+    message: ECDSA key generation requires PQC signature migration.
+    pattern: ecdsa.GenerateKey($CURVE, $RAND)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.ecdsa-keygen
+      algorithm: ECDSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: go
+      parameters: [parameter_set]
+
+  - id: enqrypta.crypto.go.ecdsa-sign
+    languages: [go]
+    severity: WARNING
+    message: ECDSA signatures require PQC signature migration.
+    pattern-either:
+      - pattern: ecdsa.Sign(...)
+      - pattern: ecdsa.SignASN1(...)
+      - pattern: ecdsa.Verify(...)
+      - pattern: ecdsa.VerifyASN1(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.ecdsa-sign
+      algorithm: ECDSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.crypto.go.ecdh
+    languages: [go]
+    severity: WARNING
+    message: ECDH key agreement requires PQC key-establishment migration.
+    patterns:
+      - pattern-either:
+          - pattern: ecdh.$CURVE().GenerateKey(...)
+          - pattern: ecdh.$CURVE().NewPrivateKey(...)
+      - metavariable-regex:
+          metavariable: $CURVE
+          regex: ^P(256|384|521)$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.ecdh
+      algorithm: ECDH
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.crypto.go.x25519
+    languages: [go]
+    severity: WARNING
+    message: X25519 key agreement requires PQC key-establishment migration.
+    pattern-either:
+      - pattern: ecdh.X25519().GenerateKey(...)
+      - pattern: ecdh.X25519().NewPrivateKey(...)
+      - pattern: curve25519.X25519(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.x25519
+      algorithm: X25519
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: go
+      parameter_set: X25519
+
+  - id: enqrypta.crypto.go.ed25519
+    languages: [go]
+    severity: WARNING
+    message: Ed25519 signatures require PQC signature migration.
+    pattern-either:
+      - pattern: ed25519.GenerateKey(...)
+      - pattern: ed25519.NewKeyFromSeed(...)
+      - pattern: ed25519.Sign(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.ed25519
+      algorithm: ED25519
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: go
+      parameter_set: Ed25519
+
+  - id: enqrypta.crypto.go.aes-gcm
+    languages: [go]
+    severity: INFO
+    message: AES-GCM usage inventoried for PQC migration analysis.
+    patterns:
+      - pattern-inside: |
+          $BLOCK, $ERR := aes.NewCipher($KEY)
+          ...
+          cipher.NewGCM($BLOCK)
+      - pattern: aes.NewCipher($KEY)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.aes-gcm
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: go
+      mode: GCM
+
+  - id: enqrypta.crypto.go.aes
+    languages: [go]
+    severity: INFO
+    message: AES usage inventoried for PQC migration analysis.
+    patterns:
+      - pattern: aes.NewCipher($KEY)
+      - pattern-not-inside: |
+          $BLOCK, $ERR := aes.NewCipher($KEY)
+          ...
+          cipher.NewGCM($BLOCK)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.aes
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.crypto.go.sha1
+    languages: [go]
+    severity: ERROR
+    message: SHA-1 is deprecated and requires replacement.
+    pattern-either:
+      - pattern: sha1.New()
+      - pattern: sha1.Sum(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.sha1
+      algorithm: SHA-1
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.crypto.go.md5
+    languages: [go]
+    severity: ERROR
+    message: MD5 is deprecated and requires replacement.
+    pattern-either:
+      - pattern: md5.New()
+      - pattern: md5.Sum(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.md5
+      algorithm: MD5
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: go
+
+  - id: enqrypta.crypto.go.ml-kem-768
+    languages: [go]
+    severity: INFO
+    message: ML-KEM usage inventoried as post-quantum key establishment.
+    pattern-either:
+      - pattern: mlkem.GenerateKey768()
+      - pattern: mlkem.NewDecapsulationKey768(...)
+      - pattern: mlkem.NewEncapsulationKey768(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.ml-kem-768
+      algorithm: ML-KEM
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: go
+      parameter_set: ML-KEM-768
+
+  - id: enqrypta.crypto.go.ml-kem-1024
+    languages: [go]
+    severity: INFO
+    message: ML-KEM usage inventoried as post-quantum key establishment.
+    pattern-either:
+      - pattern: mlkem.GenerateKey1024()
+      - pattern: mlkem.NewDecapsulationKey1024(...)
+      - pattern: mlkem.NewEncapsulationKey1024(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.ml-kem-1024
+      algorithm: ML-KEM
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: go
+      parameter_set: ML-KEM-1024
+
+  - id: enqrypta.crypto.go.ml-dsa
+    languages: [go]
+    severity: INFO
+    message: ML-DSA usage inventoried as a post-quantum signature.
+    patterns:
+      - pattern: $PARAMETER_SET.GenerateKey(...)
+      - metavariable-regex:
+          metavariable: $PARAMETER_SET
+          regex: ^mldsa(44|65|87)$
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.ml-dsa
+      algorithm: ML-DSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: go

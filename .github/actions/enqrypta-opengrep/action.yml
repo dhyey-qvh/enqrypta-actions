@@ -59,10 +59,12 @@ runs:
 
     - name: Run EnQrypta crypto rules
       shell: bash
+      env:
+        ENQRYPTA_RULES: ${{ github.action_path }}/rules
       run: |
         set -euo pipefail
         .enqrypta/bin/opengrep scan \
-          --config "${{ github.action_path }}/rules/crypto.yml" \
+          --config "${ENQRYPTA_RULES}" \
           --json-output .enqrypta/opengrep.json \
           --sarif-output .enqrypta/opengrep.sarif \
           "${GITHUB_WORKSPACE}"
@@ -71,11 +73,13 @@ runs:
       shell: bash
       env:
         OPENGREP_VERSION: ${{ inputs.opengrep-version }}
+        ENQRYPTA_RULES: ${{ github.action_path }}/rules
       run: |
         python "${{ github.action_path }}/scripts/normalize.py" \
           --input .enqrypta/opengrep.json \
           --output .enqrypta/enqrypta-findings.json \
-          --scanner-version "${OPENGREP_VERSION}"
+          --scanner-version "${OPENGREP_VERSION}" \
+          --rules "${ENQRYPTA_RULES}"
 
     - name: Publish normalized findings
       shell: bash
