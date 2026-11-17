@@ -499,6 +499,11 @@ def main() -> None:
         default="",
         help="EnQrypta classification API base URL; empty skips artifact classification",
     )
+    parser.add_argument(
+        "--classification-audience",
+        default="",
+        help="OIDC audience of the classification API; empty uses its default",
+    )
     args = parser.parse_args()
 
     workspace = Path(os.environ["GITHUB_WORKSPACE"])
@@ -510,7 +515,13 @@ def main() -> None:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import classify
 
-    classifier = classify.Classifier(args.classification_url) if args.classification_url else None
+    classifier = (
+        classify.Classifier(
+            args.classification_url, args.classification_audience or classify.DEFAULT_AUDIENCE
+        )
+        if args.classification_url
+        else None
+    )
     findings = classify.apply(results, findings, classifier, matched_span)
     output = {
         "schema_version": SCHEMA_VERSION,

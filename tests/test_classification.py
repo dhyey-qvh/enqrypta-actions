@@ -186,6 +186,11 @@ def test_encrypted_private_key_is_kept_as_unconfirmed(tmp_path):
     assert finding["classification"]["encrypted"] is True
 
 
+def TOKEN(audience: str) -> str:  # noqa: N802 - a token provider passed like a constant
+    assert audience == "https://classification-api.enqrypta.com"
+    return "oidc-token"
+
+
 def test_classifier_sends_no_questions_and_caches_by_artifact(monkeypatch):
     classify = load("classify")
     calls = []
@@ -195,13 +200,14 @@ def test_classifier_sends_no_questions_and_caches_by_artifact(monkeypatch):
         return io.BytesIO(json.dumps(response("rsa2048_public_pem")).encode())
 
     monkeypatch.setattr(classify.urllib.request, "urlopen", urlopen)
-    classifier = classify.Classifier("https://classification.example/")
+    classifier = classify.Classifier("https://classification.example/", token_provider=TOKEN)
 
     assert classifier.classify(PEM)["inventory"]["key_algorithm"] == "rsa"
     assert classifier.classify(PEM) is classifier.classify(PEM)
     assert len(calls) == 1
     assert calls[0].full_url == "https://classification.example/decide"
-    assert calls[0].get_header("User-agent") == "EnQrypta-GitHub-Action/7.0"
+    assert calls[0].get_header("User-agent") == "EnQrypta-GitHub-Action/8.0"
+    assert calls[0].get_header("Authorization") == "Bearer oidc-token"
     assert json.loads(calls[0].data) == {
         "engine": "product", "state": {"artifact": PEM}, "questions": {}
     }
@@ -218,7 +224,7 @@ def test_api_failures_never_fail_the_scan_and_stop_after_three(monkeypatch, caps
         raise urllib.error.HTTPError(request.full_url, 503, "unavailable", {}, io.BytesIO(b""))
 
     monkeypatch.setattr(classify.urllib.request, "urlopen", urlopen)
-    classifier = classify.Classifier("https://classification.example")
+    classifier = classify.Classifier("https://classification.example", token_provider=TOKEN)
 
     assert [classifier.classify(f"artifact-{i}") for i in range(6)] == [None] * 6
     assert len(calls) == 3
@@ -231,7 +237,7 @@ def test_oversized_artifact_is_not_sent(monkeypatch):
     monkeypatch.setattr(
         classify.urllib.request, "urlopen", lambda *a, **k: pytest.fail("must not be called")
     )
-    classifier = classify.Classifier("https://classification.example")
+    classifier = classify.Classifier("https://classification.example", token_provider=TOKEN)
 
     assert classifier.classify("A" * (classify.MAX_ARTIFACT_BYTES + 1)) is None
     assert classifier.skipped == 1
@@ -246,10 +252,17 @@ def test_main_classifies_artifacts_and_never_writes_them_to_the_payload(monkeypa
         json.dumps({"results": [raw_result("enqrypta.crypto.artifact.pem", PEM, artifact="pem")]})
     )
     monkeypatch.setenv("GITHUB_WORKSPACE", str(tmp_path))
-    monkeypatch.setattr(
-        "urllib.request.urlopen",
-        lambda request, timeout: io.BytesIO(json.dumps(response("rsa2048_public_pem")).encode()),
-    )
+    monkeypatch.setenv("ACTIONS_ID_TOKEN_REQUEST_URL", "https://token.example/?api-version=2")
+    monkeypatch.setenv("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "request-token")
+    sent = []
+
+    def urlopen(request, timeout):
+        sent.append(request)
+        if request.full_url.startswith("https://token.example/"):
+            return io.BytesIO(json.dumps({"value": "oidc-token"}).encode())
+        return io.BytesIO(json.dumps(response("rsa2048_public_pem")).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -262,3 +275,62 @@ def test_main_classifies_artifacts_and_never_writes_them_to_the_payload(monkeypa
     payload = out.read_text()
     assert json.loads(payload)["findings"][0]["algorithm"] == "RSA"
     assert "MIIB" not in payload and "BEGIN" not in payload
+    token_request, decide = sent
+    assert token_request.full_url == (
+        "https://token.example/?api-version=2"
+        "&audience=https%3A%2F%2Fclassification-api.enqrypta.com"
+    )
+    assert token_request.get_header("Authorization") == "Bearer request-token"
+    assert decide.get_header("Authorization") == "Bearer oidc-token"
+    assert "oidc-token" not in payload
+
+
+def test_without_an_oidc_token_nothing_is_sent(monkeypatch, capsys):
+    classify = load("classify")
+    monkeypatch.delenv("ACTIONS_ID_TOKEN_REQUEST_URL", raising=False)
+    monkeypatch.delenv("ACTIONS_ID_TOKEN_REQUEST_TOKEN", raising=False)
+    monkeypatch.setattr(
+        classify.urllib.request, "urlopen", lambda *a, **k: pytest.fail("must not be called")
+    )
+    classifier = classify.Classifier("https://classification.example")
+
+    assert [classifier.classify(f"artifact-{i}") for i in range(3)] == [None] * 3
+    assert (classifier.requests, classifier.skipped) == (0, 3)
+    assert "permissions: id-token: write" in capsys.readouterr().err
+
+
+def test_expired_token_is_refreshed_once_then_rejection_is_reported(monkeypatch, capsys):
+    classify = load("classify")
+    tokens = iter(["first", "second", "third"])
+    seen = []
+
+    def urlopen(request, timeout):
+        seen.append(request.get_header("Authorization"))
+        if len(seen) == 2:
+            return io.BytesIO(json.dumps(response("rsa2048_public_pem")).encode())
+        raise urllib.error.HTTPError(request.full_url, 401, "unauthorized", {}, io.BytesIO(b""))
+
+    monkeypatch.setattr(classify.urllib.request, "urlopen", urlopen)
+    classifier = classify.Classifier(
+        "https://classification.example", token_provider=lambda audience: next(tokens)
+    )
+
+    assert classifier.classify("artifact-a")["inventory"]["key_algorithm"] == "rsa"
+    assert classifier.classify("artifact-b") is None
+    assert seen == ["Bearer first", "Bearer second", "Bearer second"]
+    assert classifier.failures == 1
+    assert "rejected the credential (HTTP 401)" in capsys.readouterr().err
+
+
+def test_custom_audience_is_requested():
+    classify = load("classify")
+    audiences = []
+    classifier = classify.Classifier(
+        "https://classification.example",
+        "https://classification.internal",
+        token_provider=lambda audience: audiences.append(audience) or "t",
+    )
+
+    assert classifier._credential() == "t"
+    assert classifier._credential() == "t"
+    assert audiences == ["https://classification.internal"]
