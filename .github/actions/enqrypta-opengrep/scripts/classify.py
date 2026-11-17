@@ -9,21 +9,29 @@ API's parser.
 
 The extracted value is sent to the API and is never written to the findings
 payload; only its SHA-256 is kept.
+
+Each request carries a GitHub Actions OIDC token for the classification API's
+audience, so the workflow needs ``permissions: id-token: write``. Without a
+token nothing is sent and artifact findings are handled as unanswered.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
+from collections.abc import Callable
 
-USER_AGENT = "EnQrypta-GitHub-Action/7.0"  # the API's CDN rejects clients without one
+USER_AGENT = "EnQrypta-GitHub-Action/8.0"  # the API's CDN rejects clients without one
 TIMEOUT_SECONDS = 10
 MAX_ARTIFACT_BYTES = 16_384
 MAX_REQUESTS = 200
 MAX_CONSECUTIVE_FAILURES = 3
+DEFAULT_AUDIENCE = "https://classification-api.enqrypta.com"
 
 PLACEHOLDER_ALGORITHM = "UNCLASSIFIED"
 PEM_LABEL = re.compile(r"-----BEGIN ([A-Z0-9 ]+)-----")
@@ -60,16 +68,77 @@ def artifact_text(kind: str, matched: str) -> str:
     return matched.strip()
 
 
+def github_oidc_token(audience: str) -> str | None:
+    """A GitHub Actions OIDC token for ``audience``, or None when the run cannot get one."""
+    url = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_URL")
+    request_token = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+    if not url or not request_token:
+        return None
+    separator = "&" if "?" in url else "?"
+    request = urllib.request.Request(
+        f"{url}{separator}audience={urllib.parse.quote(audience, safe='')}",
+        headers={"Authorization": f"Bearer {request_token}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            value = json.loads(response.read())["value"]
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+        print(f"GitHub OIDC token request failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return None
+    return value if isinstance(value, str) and value else None
+
+
 class Classifier:
     """Calls the classification API, once per distinct artifact."""
 
-    def __init__(self, url: str):
+    def __init__(
+        self,
+        url: str,
+        audience: str = DEFAULT_AUDIENCE,
+        token_provider: Callable[[str], str | None] = github_oidc_token,
+    ):
         self.url = url.rstrip("/") + "/decide"
+        self.audience = audience
+        self.token_provider = token_provider
+        self.token: str | None = None
+        self.token_requested = False
+        self.token_refreshed = False
         self.cache: dict[str, dict | None] = {}
         self.requests = 0
         self.failures = 0
         self.consecutive_failures = 0
         self.skipped = 0
+
+    def _credential(self) -> str | None:
+        if not self.token_requested:
+            self.token_requested = True
+            self.token = self.token_provider(self.audience)
+            if self.token is None:
+                print(
+                    "artifact classification skipped: no GitHub OIDC token "
+                    "(the workflow needs permissions: id-token: write)",
+                    file=sys.stderr,
+                )
+        return self.token
+
+    def _post(self, artifact: str, token: str) -> dict:
+        body = {"engine": "product", "state": {"artifact": artifact}, "questions": {}}
+        request = urllib.request.Request(
+            self.url,
+            data=json.dumps(body).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": USER_AGENT,
+                "Authorization": f"Bearer {token}",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            parsed = json.loads(response.read())
+        if not isinstance(parsed, dict) or not isinstance(parsed.get("inventory"), dict):
+            raise ValueError("response has no inventory")
+        return parsed
 
     def classify(self, artifact: str) -> dict | None:
         digest = hashlib.sha256(artifact.encode()).hexdigest()
@@ -85,29 +154,38 @@ class Classifier:
         ):
             self.skipped += 1
             return None
+        token = self._credential()
+        if token is None:
+            self.skipped += 1
+            return None
         self.requests += 1
-        body = {"engine": "product", "state": {"artifact": artifact}, "questions": {}}
-        request = urllib.request.Request(
-            self.url,
-            data=json.dumps(body).encode(),
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "User-Agent": USER_AGENT,
-            },
-            method="POST",
-        )
         try:
-            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-                parsed = json.loads(response.read())
-            if not isinstance(parsed, dict) or not isinstance(parsed.get("inventory"), dict):
-                raise ValueError("response has no inventory")
+            try:
+                parsed = self._post(artifact, token)
+            except urllib.error.HTTPError as exc:
+                # OIDC tokens are short-lived: one fresh token per scan, then give up.
+                if exc.code != 401 or self.token_refreshed:
+                    raise
+                self.token_refreshed = True
+                self.token = self.token_provider(self.audience)
+                if self.token is None:
+                    raise
+                parsed = self._post(artifact, self.token)
         except (urllib.error.URLError, TimeoutError, ValueError) as exc:
             # A classification failure never fails the scan. Includes HTTP
             # errors and the CDN's non-JSON 403 page.
             self.failures += 1
             self.consecutive_failures += 1
-            print(f"classification request failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+            if isinstance(exc, urllib.error.HTTPError) and exc.code in (401, 403):
+                print(
+                    f"classification API rejected the credential (HTTP {exc.code})",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"classification request failed: {type(exc).__name__}: {exc}",
+                    file=sys.stderr,
+                )
             return None
         self.consecutive_failures = 0
         return parsed

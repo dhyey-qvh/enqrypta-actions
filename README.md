@@ -45,6 +45,26 @@ Release order:
    Repositories installed on v6 keep scanning and launching correlated scans;
    they move to v7 when their workflow is reinstalled.
 
+## v8: authenticated classification requests
+
+The classification API's `/decide` requires a credential. From
+`enqrypta-opengrep-workflow-v8`, every classification request carries a GitHub
+Actions OIDC token for the audience `https://classification-api.enqrypta.com`
+(input `classification-api-audience`). The job already grants
+`id-token: write`; no secret is stored in this public repository or in customer
+repositories. On v7 and earlier, classification requests are rejected, so key,
+certificate and token findings are dropped; private-key findings are still kept.
+Findings schema and API upload are unchanged.
+
+Release order:
+
+1. The classification API accepts GitHub OIDC tokens for that audience and
+   requires `job_workflow_ref` to be this repository's
+   `enqrypta-opengrep.yml` workflow at an `enqrypta-opengrep-workflow-v*` tag.
+2. Tag the merged commit `enqrypta-opengrep-workflow-v8`. Never move v1–v7.
+3. In the API deployment, append v8 and its commit SHA to both trust lists and
+   set `GITHUB_APP_WORKFLOW_REF` to v8. Repositories move to v8 on reinstall.
+
 For correlated launches, the API allows 15 minutes for findings delivery after an
 exact successful GitHub run's `updated_at`, falling back to 90 minutes from launch
 creation when no execution callback is received. Expired delivery returns
