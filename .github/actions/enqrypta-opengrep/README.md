@@ -67,10 +67,10 @@ The payload adds `rules_digest`, a SHA-256 over the rule files used.
 
 | Path | What it covers |
 |---|---|
-| `rules/inventory/<language>.yml` | Crypto API calls in Java, Python, Go, JS/TS and Rust: algorithm, purpose (`usage`) and parameters |
-| `rules/misuse/<language>.yml` | Weak ciphers (DES, 3DES, RC4, Blowfish), ECB, MD5/SHA-1 in signatures or MACs, non-crypto RNG for secrets, constant IVs and keys, disabled TLS verification, TLS below 1.2. Each carries a CWE |
+| `rules/inventory/<language>.yml` | Crypto API calls in Java, Python, Go, JS/TS, Rust and PHP: algorithm, purpose (`usage`) and parameters |
+| `rules/misuse/<language>.yml` | Weak ciphers (DES, 3DES, RC4, Blowfish), ECB, MD5/SHA-1 in signatures or MACs, non-crypto RNG for secrets, constant IVs and keys, disabled TLS verification, TLS below 1.2. Each carries a CWE. PHP adds more (below) |
 | `rules/artifacts/generic.yml` | PEM blocks, OpenSSH public keys and JWTs in any file, classified by the classification API (below) |
-| `rules/fallback/generic.yml` | The v1–v6 name-based regex rules, unchanged IDs, for other source and config files (Kotlin, C#, C/C++, PHP, YAML, ...). Files of the five languages are excluded, as are prose and lockfiles (`*.md`, `*.txt`, `*.lock`, ...), where an algorithm name is a mention, not a use |
+| `rules/fallback/generic.yml` | The v1–v6 name-based regex rules, unchanged IDs, for other source and config files (Kotlin, C#, C/C++, YAML, ...). Files of the six languages are excluded, as are prose and lockfiles (`*.md`, `*.txt`, `*.lock`, ...), where an algorithm name is a mention, not a use |
 
 Inventory rules only emit algorithms the API's catalog classifies (RSA, ECDSA,
 ECDH, X25519, Ed25519, DH, AES, SHA-1, MD5, ML-KEM, ML-DSA), because inventory
@@ -90,6 +90,46 @@ Known limits:
 - Constant keys and IVs are reported as `SYMMETRIC-KEY` / `SYMMETRIC-CIPHER`:
   the cipher is often not known at the call that fixes the key or IV.
 
+### PHP
+
+Inventory covers ext-openssl, ext-sodium, `hash`/`mhash`, phpseclib 2 and 3,
+Laravel encryption (`Crypt`, `encrypt()`, `Encrypter`, `app.cipher`, Eloquent
+`encrypted` casts), Laravel Passport, firebase/php-jwt, lcobucci/jwt,
+web-token/jwt-framework and defuse/php-encryption. Besides the shared misuse
+classes, PHP reports:
+
+| Rule | CWE | What |
+|---|---|---|
+| `weak-key-size` | 326 | RSA/DH/DSA below 2048 bits, curves below 224 bits |
+| `rsa-pkcs1v15-encryption` | 780 | RSA encryption with PKCS#1 v1.5 (the `openssl_public_encrypt` default) or no padding |
+| `legacy-default-cipher` | 327 | `openssl_seal`/`openssl_open` without a cipher (RC4 before PHP 8.0), `openssl_pkcs7_encrypt` without a cipher or with RC2 |
+| `insecure-mac-compare` | 208 | HMAC, `crypt()` or signature hashes compared with `==`/`===`/`strcmp` instead of `hash_equals` |
+| `jwt-unsafe-verification` | 347 | php-jwt v5 allowing HMAC and RSA/ECDSA together (algorithm confusion), lcobucci unsecured signer |
+| `mcrypt-use` | 327 | Any `mcrypt_*` call |
+| `db-tls-verify-disabled` | 295 | MySQL server-certificate verification off, Postgres `sslmode` `disable`/`allow` |
+| `weak-kdf` | 916 | PBKDF2 with MD5/SHA-1 or under 100,000 iterations, bcrypt cost under 10, MD5/DES `crypt()` salts |
+| `weak-password-hash` | 916 | `md5`/`sha1`/`hash` of a password variable |
+| `hardcoded-salt` | 760 | Literal salts in PBKDF2, `sodium_crypto_pwhash`, `crypt`, `password_hash` |
+
+`sha1-signature` also reports `openssl_sign` without an algorithm (it defaults
+to SHA-1) and `'digest_alg' => 'sha1'` certificate configuration;
+`tls-verify-disabled` covers cURL, Guzzle, Symfony HttpClient, stream contexts,
+PHPMailer, the Laravel HTTP client and the WordPress HTTP API.
+
+Matching works for `md5()`, `MD5()` and `\md5()`, PHP 8 named arguments, and
+values passed through a variable or class constant. Limits:
+
+- `use` aliases are not resolved, so classes are matched by their last name
+  segment (`RSA::createKey`, `Crypt::encrypt`); `use X as Y` is not followed.
+- `openssl_sign`/`openssl_verify` and S/MIME signing are reported as RSA with
+  confidence 0.7, and `openssl_pkey_derive` as ECDH with confidence 0.8: the key
+  type is not visible at the call.
+- Laravel `encrypt()`/`decrypt()` helpers are matched by name (confidence 0.8);
+  a project function with the same name is also reported.
+- Postgres `sslmode => 'prefer'` (Laravel's default) is not reported.
+- WordPress core (`wp-includes/`, `wp-admin/`) and Blade templates are not
+  scanned.
+
 ### Rule metadata and metavariables
 
 Parameters come from literal values (with Opengrep constant propagation) or
@@ -108,6 +148,7 @@ these metavariables:
 | `$IV_BITS` / `$IV_BYTES` | `iv_length_bits` |
 | `$TAG_BITS` / `$TAG_BYTES` | `tag_length_bits` |
 | `$PROTOCOL` | `protocol` (normalized, e.g. `TLS 1.2`) |
+| `$JWS_ALG` | `parameter_set`, `group_order_bits` from a JWS ECDSA algorithm (`ES384` → `P-384`, lcobucci `Ecdsa\Sha512` → `P-521`) |
 
 `metadata.parameters` lists the evidence fields a rule expects (any of
 `key_size_bits`, `group_order_bits`, `parameter_set`, `mode`, `padding`,

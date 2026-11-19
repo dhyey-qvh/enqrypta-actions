@@ -28,6 +28,7 @@ LANGUAGES = {
     "go": {"*.go"},
     "javascript": {"*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.mts", "*.cts"},
     "rust": {"*.rs"},
+    "php": {"*.php"},
 }
 # Algorithms the backend catalog classifies into a known family. Inventory
 # findings become crypto assets, so a new name here needs a catalog entry first.
@@ -104,7 +105,7 @@ def test_artifact_rules_only_locate_values_for_the_classification_api():
             assert metadata["algorithm"] == "UNCLASSIFIED"
 
 
-def test_rule_packs_cover_the_five_languages():
+def test_rule_packs_cover_every_language():
     for pack in LANGUAGE_PACKS:
         assert {path.stem for path in (RULES / pack).glob("*.yml")} == set(LANGUAGES)
 
@@ -197,6 +198,10 @@ def test_scanning_the_corpus_normalizes_and_skips_fallback_rules(tmp_path):
 
     rule_ids = {finding["rule_id"] for finding in findings}
     assert rule_ids.isdisjoint(V6_FALLBACK_IDS)
+    # The API fingerprints findings by rule and location, so a rule reporting
+    # the same line twice would be merged into one stored finding.
+    locations = [(f["rule_id"], f["file_path"], f["line_start"]) for f in findings]
+    assert len(locations) == len(set(locations))
     assert rule_ids == {rule["id"] for _, _, rule in pack_rules()}
     declared = {
         rule["id"]: set(rule["metadata"].get("parameters", [])) for _, _, rule in pack_rules()
