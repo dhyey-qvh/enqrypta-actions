@@ -1,0 +1,703 @@
+# PHP crypto inventory: ext-openssl, ext-sodium, hash/mhash, phpseclib 2/3,
+# Laravel encryption, firebase/php-jwt, lcobucci/jwt, web-token/jwt-framework,
+# Laravel Passport and defuse/php-encryption. Purpose comes from the API called.
+#
+# PHP-specific matching conventions (see tests/rules/inventory/php.php):
+# - Global functions are matched as `$FN(...)` with an anchored, case-insensitive
+#   regex, so `md5()`, `MD5()` and the namespaced `\md5()` all match.
+# - Algorithm names are matched with `metavariable-pattern` and a "=~/.../" string,
+#   which also follows values assigned to a variable or class constant.
+# - PHP 8 named arguments have their own pattern where the argument carries the
+#   algorithm.
+# - Opengrep does not resolve `use` aliases, so class names are matched on their
+#   last segment (qualified names render with spaces, e.g. `\phpseclib3 Crypt RSA`).
+# - WordPress core is upstream code like vendor/ and is not scanned; Blade
+#   templates are not PHP the parser can read.
+rules:
+  - id: enqrypta.crypto.php.rsa-keygen
+    languages: [php]
+    severity: WARNING
+    message: RSA key generation requires PQC migration review; plan a move to ML-KEM (key establishment) or ML-DSA (signatures).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      # openssl_pkey_new() with no config generates an RSA key (OpenSSL default).
+      - patterns:
+          - pattern: $FN()
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+      # Inline config, RSA type and key size.
+      - patterns:
+          - pattern: $FN([..., 'private_key_type' => $T, ...], ...)
+          - pattern: $FN([..., 'private_key_bits' => $KEY_SIZE, ...], ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+          - metavariable-regex: {metavariable: $T, regex: '^\\?OPENSSL_KEYTYPE_RSA$'}
+      # Inline config, RSA type without key size.
+      - patterns:
+          - pattern: $FN([..., 'private_key_type' => $T, ...], ...)
+          - pattern-not: $FN([..., 'private_key_bits' => $B, ...], ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+          - metavariable-regex: {metavariable: $T, regex: '^\\?OPENSSL_KEYTYPE_RSA$'}
+      # Inline config without a type: the default type is RSA.
+      - patterns:
+          - pattern: $FN([..., 'private_key_bits' => $KEY_SIZE, ...], ...)
+          - pattern-not: $FN([..., 'private_key_type' => $T, ...], ...)
+          - pattern-not: $FN([..., 'curve_name' => $C, ...], ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+      # Config held in a variable.
+      - patterns:
+          - pattern-inside: |
+              $CFG = [..., 'private_key_type' => $T, ...];
+              ...
+          - pattern-inside: |
+              $CFG = [..., 'private_key_bits' => $KEY_SIZE, ...];
+              ...
+          - pattern: $FN($CFG, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+          - metavariable-regex: {metavariable: $T, regex: '^\\?OPENSSL_KEYTYPE_RSA$'}
+      - patterns:
+          - pattern-inside: |
+              $CFG = [..., 'private_key_type' => $T, ...];
+              ...
+          - pattern-not-inside: |
+              $CFG = [..., 'private_key_bits' => $B, ...];
+              ...
+          - pattern: $FN($CFG, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+          - metavariable-regex: {metavariable: $T, regex: '^\\?OPENSSL_KEYTYPE_RSA$'}
+      - patterns:
+          - pattern-inside: |
+              $CFG = [..., 'private_key_bits' => $KEY_SIZE, ...];
+              ...
+          - pattern-not-inside: |
+              $CFG = [..., 'private_key_type' => $T, ...];
+              ...
+          - pattern-not-inside: |
+              $CFG = [..., 'curve_name' => $C, ...];
+              ...
+          - pattern: $FN($CFG, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+      # phpseclib 3: RSA::createKey($bits).
+      - patterns:
+          - pattern-either:
+              - pattern: $CLS::createKey($KEY_SIZE)
+              - pattern: $CLS::createKey()
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])RSA$'}
+      # phpseclib 2: $rsa = new RSA(); $rsa->createKey($bits).
+      - patterns:
+          - pattern-inside: |
+              $R = new $CLS(...);
+              ...
+          - pattern-either:
+              - pattern: $R->createKey($KEY_SIZE, ...)
+              - pattern: $R->createKey()
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])RSA$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.rsa-keygen
+      algorithm: RSA
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.9
+      language: php
+      parameters: [key_size_bits]
+
+  - id: enqrypta.crypto.php.rsa-encrypt
+    languages: [php]
+    severity: WARNING
+    message: RSA encryption requires PQC key-establishment migration (ML-KEM).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $OUT, $KEY, $PADDING)
+              - pattern: $FN($DATA, $OUT, $KEY)
+              - pattern: "$FN(..., padding: $PADDING, ...)"
+          - metavariable-regex:
+              metavariable: $FN
+              regex: '(?i)^\\?openssl_(public_encrypt|private_decrypt)$'
+      # phpseclib 3: $key->withPadding(RSA::ENCRYPTION_OAEP)
+      - patterns:
+          - pattern: $KEY->withPadding($PADDING)
+          - metavariable-regex: {metavariable: $PADDING, regex: '.*ENCRYPTION_'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.rsa-encrypt
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+      parameters: [padding]
+
+  - id: enqrypta.crypto.php.rsa-sign
+    languages: [php]
+    severity: WARNING
+    message: Raw RSA private-key operations (signatures) require PQC signature migration (ML-DSA).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: '(?i)^\\?openssl_(private_encrypt|public_decrypt)$'
+      # phpseclib 3: $key->withPadding(RSA::SIGNATURE_PSS)
+      - patterns:
+          - pattern: $KEY->withPadding($PADDING)
+          - metavariable-regex: {metavariable: $PADDING, regex: '.*SIGNATURE_'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.rsa-sign
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.crypto.php.openssl-sign
+    languages: [php]
+    severity: WARNING
+    message: OpenSSL signature with a classical key (RSA in most PHP code) requires PQC signature migration (ML-DSA).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern: $FN(...)
+      - metavariable-regex:
+          metavariable: $FN
+          regex: '(?i)^\\?openssl_(sign|verify|pkcs7_sign|pkcs7_verify|cms_sign|cms_verify|csr_sign)$'
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.openssl-sign
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      # The key type is not visible at the call; RSA is the common case.
+      confidence: 0.7
+      language: php
+
+  - id: enqrypta.crypto.php.openssl-seal
+    languages: [php]
+    severity: WARNING
+    message: openssl_seal/openssl_open wrap the data key with RSA; plan PQC key-establishment migration (ML-KEM).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern: $FN(...)
+      - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(seal|open)$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.openssl-seal
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.9
+      language: php
+
+  - id: enqrypta.crypto.php.pkcs7-cms-encrypt
+    languages: [php]
+    severity: WARNING
+    message: S/MIME (PKCS#7/CMS) encryption to a certificate key requires PQC key-establishment migration.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern: $FN(...)
+      - metavariable-regex:
+          metavariable: $FN
+          regex: '(?i)^\\?openssl_(pkcs7|cms)_(encrypt|decrypt)$'
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.pkcs7-cms-encrypt
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.85
+      language: php
+
+  - id: enqrypta.crypto.php.jwt-rsa
+    languages: [php]
+    severity: WARNING
+    message: RS*/PS* JSON Web Tokens are RSA signatures and require PQC signature migration (ML-DSA).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      # firebase/php-jwt: JWT::encode($payload, $key, 'RS256'), new Key($key, 'RS256'),
+      # v5 JWT::decode($jwt, $key, ['RS256']).
+      - patterns:
+          - pattern-either:
+              - pattern: $CLS::encode($PAYLOAD, $KEY, $ALG, ...)
+              - pattern: $CLS::decode($JWT, $KEY, [..., $ALG, ...])
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])JWT$'}
+          - metavariable-pattern: {metavariable: $ALG, pattern: '"=~/^(RS|PS)(256|384|512)$/"'}
+      - patterns:
+          - pattern: new $CLS($KEY, $ALG)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Key$'}
+          - metavariable-pattern: {metavariable: $ALG, pattern: '"=~/^(RS|PS)(256|384|512)$/"'}
+      # lcobucci/jwt signers and web-token/jwt-framework algorithms.
+      - patterns:
+          - pattern: new $CLS(...)
+          - metavariable-regex:
+              metavariable: $CLS
+              regex: '(?:(?:^|.*[\\ ])Rsa[\\ ]Sha(256|384|512)|(?:^|.*[\\ ])(RS|PS)(256|384|512))$'
+      - patterns:
+          - pattern-inside: |
+              use Lcobucci\JWT\Signer\Rsa\$X;
+              ...
+          - pattern: new $X(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.jwt-rsa
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.crypto.php.jwt-ecdsa
+    languages: [php]
+    severity: WARNING
+    message: ES* JSON Web Tokens are ECDSA signatures and require PQC signature migration (ML-DSA).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $CLS::encode($PAYLOAD, $KEY, $JWS_ALG, ...)
+              - pattern: $CLS::decode($JWT, $KEY, [..., $JWS_ALG, ...])
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])JWT$'}
+          - metavariable-pattern: {metavariable: $JWS_ALG, pattern: '"=~/^ES(256|256K|384|512)$/"'}
+      - patterns:
+          - pattern: new $CLS($KEY, $JWS_ALG)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Key$'}
+          - metavariable-pattern: {metavariable: $JWS_ALG, pattern: '"=~/^ES(256|256K|384|512)$/"'}
+      - patterns:
+          - pattern: new $JWS_ALG(...)
+          - metavariable-regex:
+              metavariable: $JWS_ALG
+              regex: '(?:(?:^|.*[\\ ])Ecdsa[\\ ]Sha(256|384|512)|(?:^|.*[\\ ])ES(256|256K|384|512))$'
+      - patterns:
+          - pattern-inside: |
+              use Lcobucci\JWT\Signer\Ecdsa\$X;
+              ...
+          - pattern: new $X(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.jwt-ecdsa
+      algorithm: ECDSA
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.crypto.php.jwt-eddsa
+    languages: [php]
+    severity: WARNING
+    message: EdDSA JSON Web Tokens are Ed25519 signatures and require PQC signature migration (ML-DSA).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $CLS::encode($PAYLOAD, $KEY, $ALG, ...)
+              - pattern: $CLS::decode($JWT, $KEY, [..., $ALG, ...])
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])JWT$'}
+          - metavariable-pattern: {metavariable: $ALG, pattern: '"=~/^(EdDSA|Ed25519)$/"'}
+      - patterns:
+          - pattern: new $CLS($KEY, $ALG)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Key$'}
+          - metavariable-pattern: {metavariable: $ALG, pattern: '"=~/^(EdDSA|Ed25519)$/"'}
+      - patterns:
+          - pattern: new $CLS(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])(Signer[\\ ])?(Eddsa|EdDSA)$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.jwt-eddsa
+      algorithm: ED25519
+      primitive: signature
+      usage: signing
+      confidence: 0.9
+      language: php
+      parameter_set: Ed25519
+
+  - id: enqrypta.crypto.php.passport-oauth-keys
+    languages: [php]
+    severity: WARNING
+    message: Laravel Passport signs access tokens with RS256 (RSA); plan PQC signature migration (ML-DSA).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - pattern: use Laravel\Passport\HasApiTokens;
+      - patterns:
+          - pattern: $CLS::$M(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Passport$'}
+          - metavariable-regex: {metavariable: $M, regex: '^(loadKeysFrom|keyPath)$'}
+      - patterns:
+          - pattern: new $CLS(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])CryptKey$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.passport-oauth-keys
+      algorithm: RSA
+      primitive: signature
+      usage: signing
+      confidence: 0.9
+      language: php
+
+  - id: enqrypta.crypto.php.ec-keygen
+    languages: [php]
+    severity: WARNING
+    message: Elliptic-curve key generation requires PQC migration review.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN([..., 'curve_name' => $CURVE, ...], ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+      - patterns:
+          - pattern: $FN([..., 'private_key_type' => $T, ...], ...)
+          - pattern-not: $FN([..., 'curve_name' => $C, ...], ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+          - metavariable-regex: {metavariable: $T, regex: '^\\?OPENSSL_KEYTYPE_EC$'}
+      - patterns:
+          - pattern-inside: |
+              $CFG = [..., 'curve_name' => $CURVE, ...];
+              ...
+          - pattern: $FN($CFG, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+      # phpseclib 3: EC::createKey('secp256r1'); Curve25519/Ed25519 are separate rules.
+      - patterns:
+          - pattern: $CLS::createKey($CURVE, ...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])EC$'}
+          - metavariable-pattern:
+              metavariable: $CURVE
+              patterns:
+                - pattern-not: '"=~/(?i)^(curve25519|ed25519|x25519|ed448|curve448|x448)$/"'
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.ec-keygen
+      algorithm: ECDSA
+      primitive: signature
+      usage: unknown
+      confidence: 0.85
+      language: php
+      parameters: [parameter_set]
+
+  - id: enqrypta.crypto.php.ecdh
+    languages: [php]
+    severity: WARNING
+    message: Key agreement with openssl_pkey_derive requires PQC key-establishment migration (ML-KEM).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern: $FN(...)
+      - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_derive$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.ecdh
+      algorithm: ECDH
+      primitive: key_establishment
+      usage: key_establishment
+      # openssl_pkey_derive also accepts DH and X25519 keys; EC is the common case.
+      confidence: 0.8
+      language: php
+
+  - id: enqrypta.crypto.php.dh
+    languages: [php]
+    severity: WARNING
+    message: Finite-field Diffie-Hellman requires PQC key-establishment migration (ML-KEM).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_dh_compute_key$'}
+      - patterns:
+          - pattern: $FN([..., 'private_key_type' => $T, ...], ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+          - metavariable-regex: {metavariable: $T, regex: '^\\?OPENSSL_KEYTYPE_DH$'}
+      - patterns:
+          - pattern-inside: |
+              $CFG = [..., 'private_key_type' => $T, ...];
+              ...
+          - pattern: $FN($CFG, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+          - metavariable-regex: {metavariable: $T, regex: '^\\?OPENSSL_KEYTYPE_DH$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.dh
+      algorithm: DH
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.crypto.php.x25519
+    languages: [php]
+    severity: WARNING
+    message: X25519 key agreement (libsodium box/kx/scalarmult) requires PQC key-establishment migration (ML-KEM).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: '(?i)^\\?(ParagonIE_Sodium_Compat::crypto_|sodium_crypto_)(box|box_open|box_keypair|box_seed_keypair|box_seal|box_seal_open|box_publickey_from_secretkey|kx_keypair|kx_seed_keypair|kx_client_session_keys|kx_server_session_keys|scalarmult|scalarmult_base)$'
+      - patterns:
+          - pattern: $CLS::createKey($NAME, ...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])EC$'}
+          - metavariable-pattern: {metavariable: $NAME, pattern: '"=~/(?i)^(curve25519|x25519)$/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.x25519
+      algorithm: X25519
+      primitive: key_establishment
+      usage: key_establishment
+      confidence: 0.95
+      language: php
+      parameter_set: X25519
+
+  - id: enqrypta.crypto.php.ed25519
+    languages: [php]
+    severity: WARNING
+    message: Ed25519 signatures require PQC signature migration (ML-DSA).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex:
+              metavariable: $FN
+              regex: '(?i)^\\?sodium_crypto_sign(|_open|_detached|_verify_detached|_keypair|_seed_keypair|_publickey_from_secretkey)$'
+      - patterns:
+          - pattern: $CLS::createKey($NAME, ...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])EC$'}
+          - metavariable-pattern: {metavariable: $NAME, pattern: '"=~/(?i)^ed25519$/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.ed25519
+      algorithm: ED25519
+      primitive: signature
+      usage: signing
+      confidence: 0.95
+      language: php
+      parameter_set: Ed25519
+
+  - id: enqrypta.crypto.php.aes
+    languages: [php]
+    severity: INFO
+    message: AES usage inventoried for PQC migration analysis; prefer 256-bit keys and an AEAD mode (GCM).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern-either:
+          - pattern: $FN($DATA, $CIPHER, ...)
+          - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+      - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(encrypt|decrypt)$'}
+      - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^(id-)?aes/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.aes
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+      parameters: [mode, key_size_bits]
+
+  - id: enqrypta.crypto.php.aes-gcm-sodium
+    languages: [php]
+    severity: INFO
+    message: AES-256-GCM (libsodium) usage inventoried for PQC migration analysis.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern: $FN(...)
+      - metavariable-regex:
+          metavariable: $FN
+          regex: '(?i)^\\?sodium_crypto_aead_aes256gcm_(encrypt|decrypt|keygen)$'
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.aes-gcm-sodium
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+      mode: GCM
+      key_size_bits: 256
+
+  - id: enqrypta.crypto.php.aes-phpseclib
+    languages: [php]
+    severity: INFO
+    message: AES (phpseclib) usage inventoried for PQC migration analysis.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern-either:
+          - pattern: new $CLS($MODE)
+          - pattern: new $CLS()
+      - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])(AES|Rijndael)$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.aes-phpseclib
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: php
+      parameters: [mode]
+
+  - id: enqrypta.crypto.php.laravel-encrypter
+    languages: [php]
+    severity: INFO
+    message: Laravel encryption (AES-256-CBC by default, set by the app.cipher config) inventoried for PQC migration analysis.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $CLS::$M(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Crypt$'}
+          - metavariable-regex: {metavariable: $M, regex: '^(en|de)crypt(String)?$'}
+      # encrypt()/decrypt() helpers; a project-defined function of that name is possible.
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(en|de)crypt$'}
+      # Eloquent encrypted casts: $casts property or casts() method.
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  class $CL { ... protected $casts = $ARR; ... }
+              - pattern: |
+                  class $CL { ... function casts() { ... return $ARR; } ... }
+          - focus-metavariable: $ARR
+          - pattern: "[..., $K => $V, ...]"
+          - metavariable-pattern:
+              metavariable: $V
+              pattern-either:
+                - pattern: "'=~/^encrypted(:|$)/'"
+                - patterns:
+                    - pattern: $C
+                    - metavariable-regex: {metavariable: $C, regex: '(?:^|.*\\)AsEncrypted(ArrayObject|Collection)::class$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.laravel-encrypter
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.8
+      language: php
+
+  - id: enqrypta.crypto.php.laravel-cipher-config
+    languages: [php]
+    severity: INFO
+    message: Laravel encryption cipher configured; inventoried for PQC migration analysis.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-inside: |
+              return [...];
+          - pattern: "[..., 'cipher' => $CIPHER, ...]"
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^aes-/"'}
+      - patterns:
+          - pattern: new $CLS($KEY, $CIPHER, ...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Encrypter$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^aes-/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.laravel-cipher-config
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: php
+      parameters: [mode, key_size_bits]
+
+  - id: enqrypta.crypto.php.defuse-encryption
+    languages: [php]
+    severity: INFO
+    message: defuse/php-encryption (AES-256-CTR with HMAC-SHA256) inventoried for PQC migration analysis.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-inside: |
+              use Defuse\Crypto\Crypto;
+              ...
+          - pattern: Crypto::$M(...)
+          - metavariable-regex: {metavariable: $M, regex: '^(en|de)crypt(WithPassword)?$'}
+      - patterns:
+          - pattern: $CLS::$M(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Defuse[\\ ]Crypto[\\ ]Crypto$'}
+          - metavariable-regex: {metavariable: $M, regex: '^(en|de)crypt(WithPassword)?$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.defuse-encryption
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+      mode: CTR
+      key_size_bits: 256
+
+  - id: enqrypta.crypto.php.sha1
+    languages: [php]
+    severity: ERROR
+    message: SHA-1 is deprecated and requires replacement (use SHA-256 or stronger).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?sha1(_file)?$'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($ALGO, ...)
+              - pattern: "$FN(..., algo: $ALGO, ...)"
+          - metavariable-regex:
+              metavariable: $FN
+              regex: '(?i)^\\?(hash|hash_file|hash_init|hash_pbkdf2|hash_hkdf)$'
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^sha-?1$/"'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $ALGO, ...)
+              - pattern: "$FN(..., digest_algo: $ALGO, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_digest$'}
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^sha-?1$/"'}
+      - patterns:
+          - pattern: $FN($ALGO, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?mhash$'}
+          - metavariable-regex: {metavariable: $ALGO, regex: '^\\?MHASH_SHA1$'}
+      # String callables: array_map('sha1', $values)
+      - patterns:
+          - pattern: $FN($CB, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(array_map|call_user_func|call_user_func_array)$'}
+          - metavariable-pattern: {metavariable: $CB, pattern: '"=~/(?i)^sha1$/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.sha1
+      algorithm: SHA-1
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.crypto.php.md5
+    languages: [php]
+    severity: ERROR
+    message: MD5 is deprecated and requires replacement (use SHA-256 or stronger).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?md5(_file)?$'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($ALGO, ...)
+              - pattern: "$FN(..., algo: $ALGO, ...)"
+          - metavariable-regex:
+              metavariable: $FN
+              regex: '(?i)^\\?(hash|hash_file|hash_init|hash_pbkdf2|hash_hkdf)$'
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^md5$/"'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $ALGO, ...)
+              - pattern: "$FN(..., digest_algo: $ALGO, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_digest$'}
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^md5$/"'}
+      - patterns:
+          - pattern: $FN($ALGO, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?mhash$'}
+          - metavariable-regex: {metavariable: $ALGO, regex: '^\\?MHASH_MD5$'}
+      - patterns:
+          - pattern: $FN($CB, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(array_map|call_user_func|call_user_func_array)$'}
+          - metavariable-pattern: {metavariable: $CB, pattern: '"=~/(?i)^md5$/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.md5
+      algorithm: MD5
+      primitive: hash
+      usage: hash
+      confidence: 0.95
+      language: php

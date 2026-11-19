@@ -44,6 +44,15 @@ KNOWN_PADDINGS = {
     "PSS": "PSS",
     "PKCS1PSS": "PSS",
     "NOPADDING": "NoPadding",
+    # PHP ext-openssl constants and phpseclib RSA::ENCRYPTION_* / SIGNATURE_*.
+    "OPENSSLPKCS1OAEPPADDING": "OAEP",
+    "OPENSSLPKCS1PADDING": "PKCS1v15",
+    "OPENSSLNOPADDING": "NoPadding",
+    "ENCRYPTIONOAEP": "OAEP",
+    "ENCRYPTIONPKCS1": "PKCS1v15",
+    "ENCRYPTIONNONE": "NoPadding",
+    "SIGNATUREPSS": "PSS",
+    "SIGNATUREPKCS1": "PKCS1v15",
 }
 CIPHER_FAMILIES = {
     "aes", "des", "des3", "chacha20", "camellia", "aria", "sm4", "bf", "blowfish", "rc2",
@@ -182,6 +191,9 @@ def metavariable_literal(result: dict, name: str) -> str | None:
 def metavariable_constant(result: dict, name: str) -> str | None:
     """Final identifier of a non-literal capture: ``ec.SECP384R1()`` -> ``SECP384R1``.
 
+    PHP namespaced names (``\\OPENSSL_PKCS1_PADDING``, ``\\phpseclib3\\Crypt\\Base::MODE_CBC``)
+    resolve to their last segment as well.
+
     Used only where the identifier names an enumerated constant (curve, mode,
     protocol version) that is then checked against a known set.
     """
@@ -192,7 +204,7 @@ def metavariable_constant(result: dict, name: str) -> str | None:
     value = raw.strip().lstrip("&").strip()
     if value.endswith(")") and "(" in value:
         value = value[: value.index("(")].strip()
-    value = re.split(r"\.|::", value)[-1]
+    value = re.split(r"\.|::|\\", value)[-1]
     return value if CONSTANT_NAME_PATTERN.match(value) else None
 
 
@@ -258,6 +270,16 @@ def _cipher_name(value: str) -> dict:
     return evidence
 
 
+JWS_ECDSA_CURVES = {"256": "P-256", "256K": "secp256k1", "384": "P-384", "512": "P-521"}
+JWS_ECDSA_PATTERN = re.compile(r"(?i)(?:^ES|Ecdsa\W+Sha)(256K?|384|512)$")
+
+
+def _jws_curve(value: str | None) -> str | None:
+    """Curve fixed by a JWS ECDSA algorithm: ``ES384`` or lcobucci ``Ecdsa\\Sha384``."""
+    match = JWS_ECDSA_PATTERN.search(value.strip()) if value else None
+    return JWS_ECDSA_CURVES.get(match.group(1).upper()) if match else None
+
+
 def parameter_evidence(result: dict, algorithm: str) -> dict:
     """Evidence resolved from rule metavariables; literal values only."""
     evidence: dict = {}
@@ -296,6 +318,15 @@ def parameter_evidence(result: dict, algorithm: str) -> dict:
         evidence["parameter_set"] = curve
         if _group_order(curve):
             evidence["group_order_bits"] = _group_order(curve)
+
+    jws_alg = metavariable_literal(result, "$JWS_ALG")
+    if jws_alg is None:
+        metavar = ((result.get("extra") or {}).get("metavars") or {}).get("$JWS_ALG")
+        jws_alg = metavar.get("abstract_content") if isinstance(metavar, dict) else None
+    curve = _jws_curve(jws_alg)
+    if curve:
+        evidence["parameter_set"] = curve
+        evidence["group_order_bits"] = _group_order(curve)
 
     parameter_set = _token(metavariable_literal(result, "$PARAMETER_SET"))
     if parameter_set is None:

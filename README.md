@@ -65,6 +65,23 @@ Release order:
 3. In the API deployment, append v8 and its commit SHA to both trust lists and
    set `GITHUB_APP_WORKFLOW_REF` to v8. Repositories move to v8 on reinstall.
 
+## v9: PHP rule packs
+
+`enqrypta-opengrep-workflow-v9` adds `rules/inventory/php.yml` (23 rules) and
+`rules/misuse/php.yml` (22 rules, see the action README). PHP files no longer
+get the v1–v6 name-based fallback findings: the first v9 scan of a PHP
+repository reports call-level `enqrypta.crypto.php.*` / `enqrypta.misuse.php.*`
+findings in place of `enqrypta.crypto.<algorithm>` word matches. Lineage records
+those sites as removed and new, as v7 did for the first five languages. WordPress
+core and Blade templates are no longer scanned. Findings schema, inputs and
+outputs are unchanged.
+
+Release order:
+
+1. Tag the merged commit `enqrypta-opengrep-workflow-v9`. Never move v1–v8.
+2. In the API deployment, append v9 and its commit SHA to both trust lists and
+   set `GITHUB_APP_WORKFLOW_REF` to v9. Repositories move to v9 on reinstall.
+
 For correlated launches, the API allows 15 minutes for findings delivery after an
 exact successful GitHub run's `updated_at`, falling back to 90 minutes from launch
 creation when no execution callback is received. Expired delivery returns

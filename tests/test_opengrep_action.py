@@ -233,7 +233,7 @@ def test_publisher_keeps_controls_user_agent_and_api_error_details(monkeypatch, 
     assert "secret-token" not in stderr
 
 
-def test_action_and_workflows_are_valid_yaml_and_use_v8():
+def test_action_and_workflows_are_valid_yaml_and_use_v9():
     action = yaml.safe_load((ACTION / "action.yml").read_text())
     reusable = yaml.safe_load(
         (ROOT / ".github" / "workflows" / "enqrypta-opengrep.yml").read_text()
@@ -241,8 +241,8 @@ def test_action_and_workflows_are_valid_yaml_and_use_v8():
     consumer = yaml.safe_load((ROOT / ".github" / "workflows" / "enqrypta-scan.yml").read_text())
 
     assert action["runs"]["using"] == "composite"
-    assert "@enqrypta-opengrep-workflow-v8" in reusable["jobs"]["scan"]["steps"][1]["uses"]
-    assert "@enqrypta-opengrep-workflow-v8" in consumer["jobs"]["scan"]["uses"]
+    assert "@enqrypta-opengrep-workflow-v9" in reusable["jobs"]["scan"]["steps"][1]["uses"]
+    assert "@enqrypta-opengrep-workflow-v9" in consumer["jobs"]["scan"]["uses"]
     # Classification requests carry an OIDC token, so the job must be able to mint one.
     assert reusable["permissions"]["id-token"] == "write"
     steps = {step.get("name"): step for step in action["runs"]["steps"]}
@@ -626,3 +626,50 @@ def test_jca_rsa_transformation_reports_padding_but_no_block_mode(tmp_path):
 
     assert "mode" not in evidence
     assert evidence["padding"] == "OAEPWithSHA-256AndMGF1Padding"
+
+
+def test_php_namespaced_constants_resolve_padding_and_mode(tmp_path):
+    normalizer = load_script("normalize")
+    cases = [
+        ("\\OPENSSL_PKCS1_OAEP_PADDING", "padding", "OAEP"),
+        ("OPENSSL_PKCS1_PADDING", "padding", "PKCS1v15"),
+        ("\\OPENSSL_NO_PADDING", "padding", "NoPadding"),
+        ("\\phpseclib3 Crypt RSA::ENCRYPTION_OAEP", "padding", "OAEP"),
+        ("RSA::SIGNATURE_PSS", "padding", "PSS"),
+    ]
+    for constant, field, expected in cases:
+        raw = with_metavars(
+            result("RSA", "openssl_public_encrypt($d, $out, $key, X)", path="src/a.php"),
+            PADDING=constant,
+        )
+        evidence = normalizer.normalize_result(raw, tmp_path)["assessment_evidence"]
+        assert evidence[field] == expected, constant
+
+    raw = with_metavars(
+        result("AES", "new AES(Base::MODE_CBC)", path="src/a.php"),
+        MODE="\\phpseclib Crypt Base::MODE_CBC",
+    )
+    assert normalizer.normalize_result(raw, tmp_path)["assessment_evidence"]["mode"] == "CBC"
+
+
+def test_jws_ecdsa_algorithm_resolves_the_curve(tmp_path):
+    normalizer = load_script("normalize")
+    cases = [
+        ("'ES256'", "P-256", 256),
+        ('"ES256K"', "secp256k1", 256),
+        ("'ES384'", "P-384", 384),
+        ("\\Lcobucci JWT Signer Ecdsa Sha512", "P-521", 521),
+    ]
+    for value, curve, bits in cases:
+        raw = with_metavars(
+            result("ECDSA", "new \\Lcobucci\\JWT\\Signer\\Ecdsa\\Sha512()", path="src/a.php"),
+            JWS_ALG=value,
+        )
+        evidence = normalizer.normalize_result(raw, tmp_path)["assessment_evidence"]
+        assert (evidence["parameter_set"], evidence["group_order_bits"]) == (curve, bits), value
+
+    raw = with_metavars(
+        result("RSA", "JWT::encode($p, $k, 'RS256')", path="src/a.php"), JWS_ALG="'RS256'"
+    )
+    evidence = normalizer.normalize_result(raw, tmp_path)["assessment_evidence"]
+    assert "parameter_set" not in evidence

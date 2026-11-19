@@ -1,0 +1,903 @@
+# PHP crypto misuse. Findings are stored as misuse (never crypto assets).
+# Matching conventions are described in rules/inventory/php.yml.
+rules:
+  - id: enqrypta.misuse.php.weak-cipher-3des
+    languages: [php]
+    severity: ERROR
+    message: Triple DES is deprecated (64-bit block, Sweet32); use openssl_encrypt with aes-256-gcm or sodium_crypto_aead_xchacha20poly1305_ietf_encrypt.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $CIPHER, ...)
+              - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(encrypt|decrypt)$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^(des-ede|des3)/"'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($A, $B, $C, $D, $CIPHER, ...)
+              - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(seal|open)$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^(des-ede|des3)/"'}
+      - patterns:
+          - pattern: $FN(..., $CONST, ...)
+          - metavariable-regex: {metavariable: $CONST, regex: '^\\?(MCRYPT_3DES|MCRYPT_TRIPLEDES|OPENSSL_CIPHER_3DES)$'}
+      - patterns:
+          - pattern: $FN($CIPHER, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(mcrypt_(encrypt|decrypt|module_open|get_iv_size|get_key_size|get_block_size))$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^(tripledes|3des)$/"'}
+      - patterns:
+          - pattern: new $CLS(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])TripleDES$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.weak-cipher-3des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: 3DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.weak-cipher-des
+    languages: [php]
+    severity: ERROR
+    message: DES is broken (56-bit key); use openssl_encrypt with aes-256-gcm or sodium_crypto_aead_xchacha20poly1305_ietf_encrypt.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $CIPHER, ...)
+              - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(encrypt|decrypt)$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^(des(-(cbc|ecb|cfb1?|cfb8|ofb))?|desx(-cbc)?)$/"'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($A, $B, $C, $D, $CIPHER, ...)
+              - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(seal|open)$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^(des(-(cbc|ecb|cfb1?|cfb8|ofb))?|desx(-cbc)?)$/"'}
+      - patterns:
+          - pattern: $FN(..., $CONST, ...)
+          - metavariable-regex: {metavariable: $CONST, regex: '^\\?(MCRYPT_DES|OPENSSL_CIPHER_DES)$'}
+      - patterns:
+          - pattern: $FN($CIPHER, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(mcrypt_(encrypt|decrypt|module_open|get_iv_size|get_key_size|get_block_size))$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^des$/"'}
+      - patterns:
+          - pattern: new $CLS(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])DES$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.weak-cipher-des
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: DES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.weak-cipher-rc4
+    languages: [php]
+    severity: ERROR
+    message: RC4 is broken; use openssl_encrypt with aes-256-gcm or sodium_crypto_aead_xchacha20poly1305_ietf_encrypt.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $CIPHER, ...)
+              - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(encrypt|decrypt)$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^rc4/"'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($A, $B, $C, $D, $CIPHER, ...)
+              - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(seal|open)$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^rc4/"'}
+      - patterns:
+          - pattern: $FN(..., $CONST, ...)
+          - metavariable-regex: {metavariable: $CONST, regex: '^\\?(MCRYPT_ARCFOUR|MCRYPT_ARCFOUR_IV)$'}
+      - patterns:
+          - pattern: $FN($CIPHER, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(mcrypt_(encrypt|decrypt|module_open|get_iv_size|get_key_size|get_block_size))$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^(arcfour|rc4)$/"'}
+      - patterns:
+          - pattern: new $CLS(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])RC4$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.weak-cipher-rc4
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: RC4
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.weak-cipher-blowfish
+    languages: [php]
+    severity: WARNING
+    message: Blowfish has a 64-bit block; use openssl_encrypt with aes-256-gcm or sodium_crypto_aead_xchacha20poly1305_ietf_encrypt.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $CIPHER, ...)
+              - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(encrypt|decrypt)$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^(bf|blowfish)(-|$)/"'}
+      - patterns:
+          - pattern: $FN(..., $CONST, ...)
+          - metavariable-regex: {metavariable: $CONST, regex: '^\\?MCRYPT_BLOWFISH(_COMPAT)?$'}
+      - patterns:
+          - pattern: $FN($CIPHER, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(mcrypt_(encrypt|decrypt|module_open|get_iv_size|get_key_size|get_block_size))$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)^blowfish(-compat)?$/"'}
+      - patterns:
+          - pattern: new $CLS(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Blowfish$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.weak-cipher-blowfish
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: BLOWFISH
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.ecb-mode
+    languages: [php]
+    severity: WARNING
+    message: ECB mode leaks plaintext patterns; use an authenticated mode such as aes-256-gcm.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $CIPHER, ...)
+              - pattern: "$FN(..., cipher_algo: $CIPHER, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(encrypt|decrypt)$'}
+          - metavariable-pattern: {metavariable: $CIPHER, pattern: '"=~/(?i)-ecb$/"'}
+      - patterns:
+          - pattern: $FN(..., $CONST, ...)
+          - metavariable-regex: {metavariable: $CONST, regex: '^\\?MCRYPT_MODE_ECB$'}
+      - patterns:
+          - pattern: $FN($CIPHER, $KEY, $DATA, $MODE, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?mcrypt_(encrypt|decrypt)$'}
+          - metavariable-pattern: {metavariable: $MODE, pattern: '"=~/(?i)^ecb$/"'}
+      # phpseclib: new AES('ecb'), new AES(Base::MODE_ECB)
+      - patterns:
+          - pattern: new $CLS($MODE)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])(AES|Rijndael|DES|TripleDES|Blowfish|Twofish|RC2)$'}
+          - metavariable-regex: {metavariable: $MODE, regex: '(?i)^(.ecb.|.*MODE_ECB)$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.ecb-mode
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: AES
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+      mode: ECB
+
+  - id: enqrypta.misuse.php.sha1-signature
+    languages: [php]
+    severity: ERROR
+    message: SHA-1 signatures are forgeable; sign with OPENSSL_ALGO_SHA256 or stronger (openssl_sign defaults to SHA-1 when the algorithm is omitted).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $SIG, $KEY, $ALGO)
+              - pattern: "$FN(..., algorithm: $ALGO, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(sign|verify)$'}
+          - metavariable-pattern:
+              metavariable: $ALGO
+              pattern-either:
+                - pattern: '"=~/(?i)^(sha-?1|sha1WithRSAEncryption|RSA-SHA1)$/"'
+                - patterns:
+                    - pattern: $C
+                    - metavariable-regex: {metavariable: $C, regex: '^\\?OPENSSL_ALGO_SHA1$'}
+      # The algorithm argument defaults to OPENSSL_ALGO_SHA1.
+      - patterns:
+          - pattern: $FN($DATA, $SIG, $KEY)
+          - pattern-not: "$FN(..., algorithm: $ALGO, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(sign|verify)$'}
+      # Certificate and CSR signatures: ['digest_alg' => 'sha1'].
+      - patterns:
+          - pattern: "[..., 'digest_alg' => $ALGO, ...]"
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^sha-?1$/"'}
+      # phpseclib 3 signature hash.
+      - patterns:
+          - pattern: $KEY->withHash($ALGO)
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^sha-?1$/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.sha1-signature
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: SHA-1
+      primitive: hash
+      usage: signing
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.md5-signature-or-mac
+    languages: [php]
+    severity: ERROR
+    message: MD5 in a signature or MAC is unsafe; use OPENSSL_ALGO_SHA256 or hash_hmac('sha256', ...).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $SIG, $KEY, $ALGO)
+              - pattern: "$FN(..., algorithm: $ALGO, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(sign|verify)$'}
+          - metavariable-pattern:
+              metavariable: $ALGO
+              pattern-either:
+                - pattern: '"=~/(?i)^(md[245]|md5WithRSAEncryption|RSA-MD5)$/"'
+                - patterns:
+                    - pattern: $C
+                    - metavariable-regex: {metavariable: $C, regex: '^\\?OPENSSL_ALGO_MD[245]$'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($ALGO, ...)
+              - pattern: "$FN(..., algo: $ALGO, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?hash_hmac(_file)?$'}
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^md[245]$/"'}
+      - patterns:
+          - pattern: $FN($ALGO, $FLAGS, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?hash_init$'}
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^md[245]$/"'}
+          - metavariable-regex: {metavariable: $FLAGS, regex: '^\\?HASH_HMAC$'}
+      # mhash(MHASH_MD5, $data, $key) is HMAC-MD5.
+      - patterns:
+          - pattern: $FN($ALGO, $DATA, $KEY)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?mhash$'}
+          - metavariable-regex: {metavariable: $ALGO, regex: '^\\?MHASH_MD5$'}
+      - patterns:
+          - pattern: "[..., 'digest_alg' => $ALGO, ...]"
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^md[245]$/"'}
+      - patterns:
+          - pattern: $KEY->withHash($ALGO)
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^md[25]$/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.md5-signature-or-mac
+      finding_kind: misuse
+      cwe: CWE-328
+      algorithm: MD5
+      primitive: hash
+      usage: mac
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.insecure-random
+    languages: [php]
+    severity: ERROR
+    message: rand(), mt_rand(), uniqid(), lcg_value() and str_shuffle() are not cryptographically secure; use random_bytes() or random_int() (Laravel Str::random() is safe).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: $VAR = <... $FN(...) ...>;
+              - metavariable-regex:
+                  metavariable: $VAR
+                  regex: ^(?!.*(?i:cache))(?:\$this->|\$|self::\$|static::\$)?(?:(?:.*_)?(?:key|iv|nonce|salt|token|secret|otp|password)|.*(?:Key|Iv|IV|Nonce|Salt|Token|Secret|Otp|Password)|(?:.*_)?(?:KEY|IV|NONCE|SALT|TOKEN|SECRET|OTP|PASSWORD))s?(?:[A-Z0-9_].*)?$
+          - patterns:
+              - pattern: "[..., $VAR => <... $FN(...) ...>, ...]"
+              - metavariable-regex:
+                  metavariable: $VAR
+                  regex: ^['"](?!.*(?i:cache))(?:(?:.*_)?(?:key|iv|nonce|salt|token|secret|otp|password)|.*(?:Key|Iv|IV|Nonce|Salt|Token|Secret|Otp|Password))s?['"]$
+              - focus-metavariable: $VAR
+          - patterns:
+              - pattern-inside: |
+                  function $F(...) { ... }
+              - pattern: return <... $FN(...) ...>;
+              - metavariable-regex:
+                  metavariable: $F
+                  regex: (?i)^(?!.*cache).*(token|secret|nonce|salt|otp|password|apikey|api_key)
+      - metavariable-regex:
+          metavariable: $FN
+          regex: '(?i)^\\?(rand|mt_rand|uniqid|lcg_value|str_shuffle|array_rand)$'
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.insecure-random
+      finding_kind: misuse
+      cwe: CWE-338
+      algorithm: PRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: php
+
+  - id: enqrypta.misuse.php.hardcoded-iv
+    languages: [php]
+    severity: ERROR
+    message: A constant IV or nonce breaks confidentiality; generate a fresh one with random_bytes(openssl_cipher_iv_length($cipher)).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $CIPHER, $KEY, $OPTIONS, "...", ...)
+              - pattern: "$FN($DATA, $CIPHER, ..., iv: \"...\", ...)"
+              - pattern: $FN($DATA, $CIPHER, $KEY, $OPTIONS, str_repeat(...), ...)
+          - pattern-not: $FN($DATA, $CIPHER, $KEY, $OPTIONS, "", ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(encrypt|decrypt)$'}
+      # libsodium nonces: secretbox/box (2nd argument) and AEAD (3rd argument).
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($MSG, "...", ...)
+              - pattern: $FN($MSG, str_repeat(...), ...)
+          - pattern-not: $FN($MSG, "", ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?sodium_crypto_(secretbox|secretbox_open|box|box_open|stream_xor)$'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($MSG, $AD, "...", $KEY)
+              - pattern: $FN($MSG, $AD, str_repeat(...), $KEY)
+          - pattern-not: $FN($MSG, $AD, "", $KEY)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?sodium_crypto_aead_\w+_(encrypt|decrypt)$'}
+      - patterns:
+          - pattern: $C->setIV("...")
+          - pattern-not: $C->setIV("")
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.hardcoded-iv
+      finding_kind: misuse
+      cwe: CWE-329
+      algorithm: SYMMETRIC-CIPHER
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: php
+      iv_generation: hardcoded
+
+  - id: enqrypta.misuse.php.hardcoded-key
+    languages: [php]
+    severity: ERROR
+    message: A key embedded in source code is exposed; load it from the environment or a secret store (Laravel config('app.key'), env()).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $CIPHER, "...", ...)
+              - pattern: "$FN(..., passphrase: \"...\", ...)"
+          - pattern-not: $FN($DATA, $CIPHER, "", ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(encrypt|decrypt)$'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($ALGO, $DATA, "...", ...)
+              - pattern: "$FN(..., key: \"...\", ...)"
+          - pattern-not: $FN($ALGO, $DATA, "", ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?hash_hmac(_file)?$'}
+      - patterns:
+          - pattern: $FN($MSG, $NONCE, "...")
+          - pattern-not: $FN($MSG, $NONCE, "")
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?sodium_crypto_(secretbox|secretbox_open|auth|stream_xor)$'}
+      - patterns:
+          - pattern: $FN($MSG, $AD, $NONCE, "...")
+          - pattern-not: $FN($MSG, $AD, $NONCE, "")
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?sodium_crypto_aead_\w+_(encrypt|decrypt)$'}
+      - patterns:
+          - pattern: new $CLS("...", ...)
+          - pattern-not: new $CLS("", ...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Encrypter$'}
+      - patterns:
+          - pattern: $C->setKey("...")
+          - pattern-not: $C->setKey("")
+      # HMAC-signed JWTs with a literal secret.
+      - patterns:
+          - pattern-either:
+              - pattern: $CLS::encode($PAYLOAD, "...", ...)
+              - pattern: $CLS::decode($JWT, "...", ...)
+          - pattern-not: $CLS::encode($PAYLOAD, "", ...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])JWT$'}
+      - patterns:
+          - pattern: new $CLS("...", $ALG)
+          - pattern-not: new $CLS("", $ALG)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Key$'}
+          - metavariable-pattern: {metavariable: $ALG, pattern: '"=~/^HS/"'}
+      # A committed Laravel APP_KEY: 'key' => 'base64:...' in config/app.php.
+      - patterns:
+          - pattern: "[..., 'key' => $KEY, ...]"
+          - metavariable-regex: {metavariable: $KEY, regex: '^[''"]base64:[A-Za-z0-9+/=]{16,}[''"]$'}
+          - focus-metavariable: $KEY
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.hardcoded-key
+      finding_kind: misuse
+      cwe: CWE-321
+      algorithm: SYMMETRIC-KEY
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.9
+      language: php
+
+  - id: enqrypta.misuse.php.tls-verify-disabled
+    languages: [php]
+    severity: ERROR
+    message: TLS certificate or hostname verification is disabled, which allows man-in-the-middle attacks; keep verification on and supply a CA bundle if needed.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      # cURL options, set one by one or as an array.
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($CH, $OPT, $VALUE)
+              - pattern: "[..., $OPT => $VALUE, ...]"
+          - metavariable-regex: {metavariable: $OPT, regex: '^\\?(CURLOPT_SSL_VERIFYPEER|CURLOPT_SSL_VERIFYHOST|CURLOPT_PROXY_SSL_VERIFYPEER|CURLOPT_PROXY_SSL_VERIFYHOST)$'}
+          - metavariable-regex: {metavariable: $VALUE, regex: '(?i)^(false|0|null|''0''|"0")$'}
+          - focus-metavariable: $OPT
+      # Stream contexts, Symfony HttpClient, PHPMailer SMTPOptions, mail and SOAP config, WordPress HTTP API.
+      - patterns:
+          - pattern: "[..., $OPTION => $VALUE, ...]"
+          - metavariable-regex: {metavariable: $OPTION, regex: '^[''"](verify_peer|sslverify|ssl_verify_peer)[''"]$'}
+          - metavariable-regex: {metavariable: $VALUE, regex: '(?i)^(false|0)$'}
+          - focus-metavariable: $OPTION
+      # Hostname checks, reported once when verify_peer is already off in the same array.
+      - patterns:
+          - pattern: "[..., $OPTION => $VALUE, ...]"
+          - pattern-not: "[..., 'verify_peer' => false, ...]"
+          - metavariable-regex: {metavariable: $OPTION, regex: '^[''"](verify_peer_name|verify_host|ssl_verify_host)[''"]$'}
+          - metavariable-regex: {metavariable: $VALUE, regex: '(?i)^(false|0)$'}
+          - focus-metavariable: $OPTION
+      - patterns:
+          - pattern: "[..., $OPTION => true, ...]"
+          - metavariable-regex: {metavariable: $OPTION, regex: '^[''"]allow_self_signed[''"]$'}
+          - focus-metavariable: $OPTION
+      # Guzzle: ['verify' => false] passed to a client or request.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: new $C(...)
+              - pattern-inside: $O->$M(...)
+              - pattern-inside: $S::$M(...)
+          - pattern: "[..., $OPTION => false, ...]"
+          - metavariable-regex: {metavariable: $OPTION, regex: '^([''"]verify[''"]|(?:.*[\\ ])?RequestOptions::VERIFY)$'}
+          - focus-metavariable: $OPTION
+      # Laravel HTTP client.
+      - pattern: $X->withoutVerifying(...)
+      - patterns:
+          - pattern: $CLS::withoutVerifying(...)
+      - patterns:
+          - pattern: $FN($CTX, 'ssl', $OPTION, false)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?stream_context_set_option$'}
+          - metavariable-pattern: {metavariable: $OPTION, pattern: '"=~/^verify_peer(_name)?$/"'}
+      # WordPress: add_filter('https_ssl_verify', '__return_false').
+      - patterns:
+          - pattern: $FN($HOOK, $CB, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?add_filter$'}
+          - metavariable-pattern: {metavariable: $HOOK, pattern: '"=~/^https_(local_)?ssl_verify$/"'}
+          - metavariable-pattern: {metavariable: $CB, pattern: "'__return_false'"}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.tls-verify-disabled
+      finding_kind: misuse
+      cwe: CWE-295
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.weak-tls-version
+    languages: [php]
+    severity: ERROR
+    message: SSL 2.0/3.0, TLS 1.0 and TLS 1.1 are deprecated; require TLS 1.2 or later (CURL_SSLVERSION_TLSv1_2, STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($CH, $OPT, $PROTOCOL)
+              - pattern: "[..., $OPT => $PROTOCOL, ...]"
+          - metavariable-regex: {metavariable: $OPT, regex: '^\\?(CURLOPT_SSLVERSION|CURLOPT_PROXY_SSLVERSION)$'}
+          - metavariable-regex:
+              metavariable: $PROTOCOL
+              regex: '^(\\?CURL_SSLVERSION_(SSLv2|SSLv3|TLSv1_0|TLSv1_1|MAX_TLSv1_0|MAX_TLSv1_1)|[2-5])$'
+          - focus-metavariable: $PROTOCOL
+      # CURL_SSLVERSION_TLSv1 means "any TLS 1.x" and is not flagged.
+      - patterns:
+          - pattern: "[..., $OPTION => $PROTOCOL, ...]"
+          - metavariable-regex: {metavariable: $OPTION, regex: '^[''"]crypto_method[''"]$'}
+          - metavariable-regex: {metavariable: $PROTOCOL, regex: '^\\?STREAM_CRYPTO_METHOD_(SSLv2|SSLv3|SSLv23|TLSv1_0|TLSv1_1)_(CLIENT|SERVER)$'}
+          - focus-metavariable: $PROTOCOL
+      - patterns:
+          - pattern: $FN($STREAM, $ENABLE, $PROTOCOL, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?stream_socket_enable_crypto$'}
+          - metavariable-regex: {metavariable: $PROTOCOL, regex: '^\\?STREAM_CRYPTO_METHOD_(SSLv2|SSLv3|SSLv23|TLSv1_0|TLSv1_1)_(CLIENT|SERVER)$'}
+      # Stream wrappers that pin a protocol: stream_socket_client('tlsv1.0://host:443').
+      - patterns:
+          - pattern: $FN($PROTOCOL, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(stream_socket_client|fsockopen|pfsockopen)$'}
+          - metavariable-pattern: {metavariable: $PROTOCOL, pattern: '"=~/(?i)^(sslv2|sslv3|tlsv1\.0|tlsv1\.1):\/\//"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.weak-tls-version
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.95
+      language: php
+      parameters: [protocol]
+
+  - id: enqrypta.misuse.php.weak-key-size
+    languages: [php]
+    severity: ERROR
+    message: The key is too short; use at least 2048-bit RSA/DH/DSA (3072 recommended) or a 256-bit curve.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN([..., 'private_key_bits' => $KEY_SIZE, ...], ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkey_new$'}
+          - metavariable-comparison: {metavariable: $KEY_SIZE, comparison: int($KEY_SIZE) < 2048}
+      - patterns:
+          - pattern-inside: |
+              $CFG = [..., 'private_key_bits' => $KEY_SIZE, ...];
+              ...
+          - pattern: $FN($CFG, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(pkey_new|csr_new)$'}
+          - metavariable-comparison: {metavariable: $KEY_SIZE, comparison: int($KEY_SIZE) < 2048}
+      - patterns:
+          - pattern: $CLS::createKey($KEY_SIZE, ...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])(RSA|DSA|DH)$'}
+          - metavariable-comparison: {metavariable: $KEY_SIZE, comparison: int($KEY_SIZE) < 2048}
+      - patterns:
+          - pattern-inside: |
+              $R = new $CLS(...);
+              ...
+          - pattern: $R->createKey($KEY_SIZE, ...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])RSA$'}
+          - metavariable-comparison: {metavariable: $KEY_SIZE, comparison: int($KEY_SIZE) < 2048}
+      # Curves below 224 bits.
+      - patterns:
+          - pattern-either:
+              - pattern: "[..., 'curve_name' => $CURVE, ...]"
+              - patterns:
+                  - pattern: $CLS::createKey($CURVE, ...)
+                  - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])EC$'}
+          - metavariable-pattern:
+              metavariable: $CURVE
+              pattern: '"=~/(?i)^(secp112r[12]|secp128r[12]|secp160k1|secp160r[12]|secp192k1|secp192r1|prime192v[123]|sect113r[12]|sect131r[12]|sect163k1|sect163r[12]|sect193r[12]|c2pnb163v[123]|c2tnb191v[123]|brainpoolP160[rt]1|brainpoolP192[rt]1|wap-wsg-idm-ecid-wtls\d+)$/"'
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.weak-key-size
+      finding_kind: misuse
+      cwe: CWE-326
+      algorithm: ASYMMETRIC-KEY
+      primitive: asymmetric
+      usage: unknown
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.rsa-pkcs1v15-encryption
+    languages: [php]
+    severity: WARNING
+    message: RSA encryption with PKCS#1 v1.5 or no padding is vulnerable to padding-oracle attacks; pass OPENSSL_PKCS1_OAEP_PADDING (openssl_public_encrypt defaults to PKCS#1 v1.5).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN($DATA, $OUT, $KEY)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(public_encrypt|private_decrypt)$'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($DATA, $OUT, $KEY, $PADDING)
+              - pattern: "$FN(..., padding: $PADDING, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(public_encrypt|private_decrypt)$'}
+          - metavariable-regex: {metavariable: $PADDING, regex: '^\\?(OPENSSL_PKCS1_PADDING|OPENSSL_NO_PADDING|OPENSSL_SSLV23_PADDING)$'}
+      - patterns:
+          - pattern: $K->withPadding($PADDING)
+          - metavariable-regex: {metavariable: $PADDING, regex: '.*ENCRYPTION_(PKCS1|NONE)$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.rsa-pkcs1v15-encryption
+      finding_kind: misuse
+      cwe: CWE-780
+      algorithm: RSA
+      primitive: asymmetric
+      usage: encryption
+      confidence: 0.9
+      language: php
+
+  - id: enqrypta.misuse.php.legacy-default-cipher
+    languages: [php]
+    severity: WARNING
+    message: Without an explicit cipher, openssl_seal/openssl_open use RC4 (before PHP 8.0) and openssl_pkcs7_encrypt uses RC2-40 (before PHP 8.1); pass 'aes-256-cbc' or OPENSSL_CIPHER_AES_256_CBC explicitly.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN($A, $B, $C, $D)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(seal|open)$'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($IN, $OUT, $CERT, $HEADERS)
+              - pattern: $FN($IN, $OUT, $CERT, $HEADERS, $FLAGS)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_pkcs7_encrypt$'}
+      - patterns:
+          - pattern: $FN(..., $CONST, ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_(pkcs7|cms)_encrypt$'}
+          - metavariable-regex: {metavariable: $CONST, regex: '^\\?OPENSSL_CIPHER_RC2_(40|64|128)$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.legacy-default-cipher
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: LEGACY-CIPHER
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.8
+      language: php
+
+  - id: enqrypta.misuse.php.insecure-mac-compare
+    languages: [php]
+    severity: WARNING
+    message: Comparing a MAC, signature or password hash with ==, === or strcmp leaks timing (and == allows "magic hash" collisions); use hash_equals($known, $user).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      # A keyed hash or password hash compared directly.
+      - patterns:
+          - pattern-either:
+              - pattern: $FN(...) == $X
+              - pattern: $X == $FN(...)
+              - pattern: $FN(...) === $X
+              - pattern: $X === $FN(...)
+              - pattern: $FN(...) != $X
+              - pattern: $X != $FN(...)
+              - pattern: $FN(...) !== $X
+              - pattern: $X !== $FN(...)
+          - pattern-not: $FN(...) === false
+          - pattern-not: $FN(...) !== false
+          - pattern-not: $FN(...) == "..."
+          - pattern-not: $FN(...) === "..."
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(hash_hmac|hash_hmac_file|hash_final|crypt)$'}
+      - patterns:
+          - pattern-either:
+              - pattern: $CMP($FN(...), $X, ...)
+              - pattern: $CMP($X, $FN(...), ...)
+          - metavariable-regex: {metavariable: $CMP, regex: '(?i)^\\?(strcmp|strcasecmp|strncmp)$'}
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(hash_hmac|hash_hmac_file|hash_final|crypt)$'}
+      # The same, through a variable.
+      - patterns:
+          - pattern-inside: |
+              $H = $FN(...);
+              ...
+          - pattern-either:
+              - pattern: $H == $X
+              - pattern: $X == $H
+              - pattern: $H === $X
+              - pattern: $X === $H
+              - pattern: $H != $X
+              - pattern: $X != $H
+              - pattern: $H !== $X
+              - pattern: $X !== $H
+          - pattern-not: $H === false
+          - pattern-not: $H !== false
+          - pattern-not: $H == "..."
+          - pattern-not: $H === "..."
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(hash_hmac|hash_hmac_file|hash_final|crypt)$'}
+      # An unkeyed hash compared with a value named like a signature or token.
+      - patterns:
+          - pattern-either:
+              - pattern: $FN(...) == $X
+              - pattern: $X == $FN(...)
+              - pattern: $FN(...) === $X
+              - pattern: $X === $FN(...)
+              - pattern: $FN(...) != $X
+              - pattern: $FN(...) !== $X
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(hash|md5|sha1)$'}
+          - metavariable-regex: {metavariable: $X, regex: '(?i)^\$.*(sig|signature|hmac|mac|token|secret|digest)'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.insecure-mac-compare
+      finding_kind: misuse
+      cwe: CWE-208
+      algorithm: HMAC
+      primitive: mac
+      usage: mac
+      confidence: 0.85
+      language: php
+
+  - id: enqrypta.misuse.php.jwt-unsafe-verification
+    languages: [php]
+    severity: ERROR
+    message: The token verification accepts forged JWTs (HMAC and RSA/ECDSA algorithms allowed together, or an unsigned signer); allow exactly one algorithm family per key.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      # firebase/php-jwt v5: JWT::decode($jwt, $key, ['HS256', 'RS256'])
+      - patterns:
+          - pattern: $CLS::decode($JWT, $KEY, $ALGS)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])JWT$'}
+          - metavariable-pattern:
+              metavariable: $ALGS
+              patterns:
+                - pattern: "[..., '=~/^HS/', ...]"
+                - pattern: "[..., '=~/^(RS|PS|ES|EdDSA)/', ...]"
+      # lcobucci/jwt: unsecured signer (alg "none").
+      - patterns:
+          - pattern: $CLS::forUnsecuredSigner(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Configuration$'}
+      - patterns:
+          - pattern: new $CLS(...)
+          - metavariable-regex: {metavariable: $CLS, regex: '(?:^|.*[\\ ])Signer[\\ ](None|Blake2b\\?None)$'}
+      - patterns:
+          - pattern-inside: |
+              use Lcobucci\JWT\Signer\None;
+              ...
+          - pattern: new None(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.jwt-unsafe-verification
+      finding_kind: misuse
+      cwe: CWE-347
+      algorithm: JWT
+      primitive: signature
+      usage: signing
+      confidence: 0.9
+      language: php
+
+  - id: enqrypta.misuse.php.mcrypt-use
+    languages: [php]
+    severity: ERROR
+    message: mcrypt is unmaintained and was removed in PHP 7.2; migrate to sodium_crypto_aead_xchacha20poly1305_ietf_encrypt or openssl_encrypt with aes-256-gcm.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern: $FN(...)
+      - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(mcrypt|mdecrypt)_\w+$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.mcrypt-use
+      finding_kind: misuse
+      cwe: CWE-327
+      algorithm: MCRYPT
+      primitive: symmetric
+      usage: encryption
+      confidence: 0.95
+      language: php
+
+  - id: enqrypta.misuse.php.db-tls-verify-disabled
+    languages: [php]
+    severity: ERROR
+    message: The database connection does not verify the server certificate or does not use TLS; set PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT to true or sslmode to verify-full.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: "[..., $OPT => $VALUE, ...]"
+              - pattern: $PDO->setAttribute($OPT, $VALUE)
+              - pattern: $FN($LINK, $OPT, $VALUE)
+          - metavariable-regex:
+              metavariable: $OPT
+              regex: '^\\?(PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT|Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT|MYSQLI_OPT_SSL_VERIFY_SERVER_CERT)$'
+          - metavariable-regex: {metavariable: $VALUE, regex: '(?i)^(false|0)$'}
+          - focus-metavariable: $OPT
+      - patterns:
+          - pattern: $FN(..., $FLAG, ...)
+          - metavariable-regex: {metavariable: $FLAG, regex: '^\\?MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT$'}
+      # Postgres sslmode disable/allow, in config arrays (including env() defaults) and DSNs.
+      - patterns:
+          - pattern-either:
+              - pattern: "[..., 'sslmode' => $MODE, ...]"
+              - patterns:
+                  - pattern: "[..., 'sslmode' => $ENV($NAME, $MODE), ...]"
+                  - metavariable-regex: {metavariable: $ENV, regex: '(?i)^\\?env$'}
+          - metavariable-regex: {metavariable: $MODE, regex: '^[''"](disable|allow)[''"]$'}
+          - focus-metavariable: $MODE
+      - patterns:
+          - pattern: '"$DSN"'
+          - metavariable-regex: {metavariable: $DSN, regex: '(?i)^pgsql:.*sslmode=(disable|allow)'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.db-tls-verify-disabled
+      finding_kind: misuse
+      cwe: CWE-295
+      algorithm: TLS
+      primitive: protocol
+      usage: tls
+      confidence: 0.9
+      language: php
+
+  - id: enqrypta.misuse.php.weak-kdf
+    languages: [php]
+    severity: ERROR
+    message: The password hashing or key derivation is too weak; use password_hash() with PASSWORD_ARGON2ID or PASSWORD_BCRYPT (cost >= 10), or hash_pbkdf2('sha256', ...) with at least 600000 iterations.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($ALGO, ...)
+              - pattern: "$FN(..., algo: $ALGO, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?hash_pbkdf2$'}
+          - metavariable-pattern: {metavariable: $ALGO, pattern: '"=~/(?i)^(md[245]|sha-?1)$/"'}
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($ALGO, $PASSWORD, $SALT, $ITERATIONS, ...)
+              - pattern: "$FN(..., iterations: $ITERATIONS, ...)"
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?hash_pbkdf2$'}
+          - metavariable-comparison: {metavariable: $ITERATIONS, comparison: int($ITERATIONS) < 100000}
+      - patterns:
+          - pattern: $FN($PASSWORD, $ALGO, [..., 'cost' => $COST, ...])
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?password_hash$'}
+          - metavariable-comparison: {metavariable: $COST, comparison: int($COST) < 10}
+      # crypt() with MD5-crypt ($1$), standard DES (2-character salt) or extended DES (_) salts.
+      - patterns:
+          - pattern: $FN($PASSWORD, $SALT)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?crypt$'}
+          - metavariable-pattern: {metavariable: $SALT, pattern: '"=~/^(\$1\$|_|[.\/0-9A-Za-z]{2}$)/"'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.weak-kdf
+      finding_kind: misuse
+      cwe: CWE-916
+      algorithm: KDF
+      primitive: kdf
+      usage: hash
+      confidence: 0.9
+      language: php
+
+  - id: enqrypta.misuse.php.weak-password-hash
+    languages: [php]
+    severity: ERROR
+    message: A password is hashed with a fast unsalted hash; use password_hash($password, PASSWORD_DEFAULT) and password_verify().
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: $FN(<... $PW ...>, ...)
+              - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(md5|sha1|crc32)$'}
+          - patterns:
+              - pattern: $FN($ALGO, <... $PW ...>, ...)
+              - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?hash$'}
+      - metavariable-regex:
+          metavariable: $PW
+          regex: '(?i)^(\$\w+->|\$)?(\w*_)?(password|passwd|pwd|pass)(_\w*)?$'
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.weak-password-hash
+      finding_kind: misuse
+      cwe: CWE-916
+      algorithm: PASSWORD-HASH
+      primitive: hash
+      usage: hash
+      confidence: 0.85
+      language: php
+
+  - id: enqrypta.misuse.php.hardcoded-salt
+    languages: [php]
+    severity: WARNING
+    message: A constant salt lets attackers precompute password guesses; generate a random salt per password (password_hash() does this for you).
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $FN($ALGO, $PASSWORD, "...", ...)
+              - pattern: "$FN(..., salt: \"...\", ...)"
+          - pattern-not: $FN($ALGO, $PASSWORD, "", ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?hash_pbkdf2$'}
+      - patterns:
+          - pattern: $FN($LENGTH, $PASSWORD, "...", ...)
+          - pattern-not: $FN($LENGTH, $PASSWORD, "", ...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?sodium_crypto_pwhash$'}
+      - patterns:
+          - pattern: $FN($PASSWORD, "...")
+          - pattern-not: $FN($PASSWORD, "")
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?crypt$'}
+      - patterns:
+          - pattern: $FN($PASSWORD, $ALGO, [..., 'salt' => $SALT, ...])
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?password_hash$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.hardcoded-salt
+      finding_kind: misuse
+      cwe: CWE-760
+      algorithm: SALT
+      primitive: kdf
+      usage: hash
+      confidence: 0.85
+      language: php
