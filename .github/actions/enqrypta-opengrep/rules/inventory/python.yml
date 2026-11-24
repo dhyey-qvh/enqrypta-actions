@@ -268,3 +268,41 @@ rules:
       usage: signing
       confidence: 0.95
       language: python
+
+  - id: enqrypta.crypto.python.csprng
+    languages: [python]
+    severity: INFO
+    message: Cryptographically secure random generator inventoried.
+    pattern-either:
+      - pattern: secrets.token_bytes($OUT_BYTES)
+      - pattern: secrets.token_hex($OUT_BYTES)
+      - pattern: secrets.token_urlsafe($OUT_BYTES)
+      - pattern: secrets.token_bytes()
+      - pattern: secrets.token_hex()
+      - pattern: secrets.token_urlsafe()
+      - pattern: secrets.randbits($OUT_BITS)
+      - pattern: secrets.randbelow(...)
+      - pattern: os.urandom($OUT_BYTES)
+      - pattern: random.SystemRandom(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.csprng
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.95
+      language: python
+      random_source: os
+
+  - id: enqrypta.crypto.python.aws-kms-generate-random
+    languages: [python]
+    severity: INFO
+    message: AWS KMS GenerateRandom (FIPS 140-3 validated HSM) inventoried.
+    pattern: $KMS.generate_random(..., NumberOfBytes=$OUT_BYTES, ...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.python.aws-kms-generate-random
+      algorithm: AWS-KMS-RANDOM
+      primitive: random
+      usage: random
+      confidence: 0.9
+      language: python
+      random_source: aws-kms

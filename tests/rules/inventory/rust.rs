@@ -111,3 +111,24 @@ fn post_quantum(rng: &mut OsRng) {
     // ok: enqrypta.crypto.rust.ml-dsa
     let d = SlhDsaSha2_128s::key_gen(rng);
 }
+
+async fn random_sources(kms: &aws_sdk_kms::Client) {
+    let mut session_token = [0u8; 32];
+    // ruleid: enqrypta.crypto.rust.csprng
+    OsRng.fill_bytes(&mut session_token);
+    let mut nonce = [0u8; 12];
+    // ruleid: enqrypta.crypto.rust.csprng
+    getrandom::fill(&mut nonce).unwrap();
+    // ok: enqrypta.crypto.rust.csprng
+    let seeded = StdRng::seed_from_u64(7);
+    // ruleid: enqrypta.crypto.rust.csprng-thread-rng
+    let mut rng = rand::rng();
+    // ruleid: enqrypta.crypto.rust.csprng-thread-rng
+    let id: u64 = rand::random();
+    // ok: enqrypta.crypto.rust.csprng-thread-rng
+    let fixed = StdRng::from_seed([0u8; 32]);
+    // ruleid: enqrypta.crypto.rust.aws-kms-generate-random
+    let out = kms.generate_random().number_of_bytes(32).send().await;
+    // ok: enqrypta.crypto.rust.aws-kms-generate-random
+    let keys = kms.list_keys().send().await;
+}

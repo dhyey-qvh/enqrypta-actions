@@ -10,7 +10,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-SCHEMA_VERSION = "3.0"
+SCHEMA_VERSION = "3.1"
 SITE_KEY_VERSION = "site-v2"
 FINDING_KINDS = {"inventory", "misuse"}
 CWE_PATTERN = re.compile(r"^CWE-[1-9][0-9]{0,4}$")
@@ -26,12 +26,32 @@ EVIDENCE_PARAMETERS = {
     "iv_length_bits",
     "tag_length_bits",
     "protocol",
+    "output_length_bits",
 }
 # Static evidence a rule may set in metadata (e.g. iv_generation: hardcoded),
 # for APIs where the call itself fixes the value (Go ``cipher.NewGCM``, Rust
 # ``Aes256Gcm``).
 STATIC_EVIDENCE = {"iv_generation", "protocol", "mode", "padding", "parameter_set"}
 STATIC_INTEGER_EVIDENCE = {"key_size_bits", "tag_length_bits", "iv_length_bits"}
+RANDOM_SOURCES = {"os", "library", "aws-kms", "aws-cloudhsm", "unknown"}
+# Name of the variable a random value is assigned to -> what the value is for.
+# First match wins; names that are not secret-like get no purpose.
+TOKEN_PURPOSES = (
+    (re.compile(r"csrf|xsrf"), "csrf"),
+    (re.compile(r"session|(^|_)sid($|_)"), "session_token"),
+    (re.compile(r"api_?key"), "api_key"),
+    (re.compile(r"reset|verif|confirm"), "password_reset"),
+    (re.compile(r"nonce"), "nonce"),
+    (re.compile(r"otp"), "otp"),
+    (re.compile(r"token|secret|key|salt"), "other"),
+)
+CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+# Left-hand side of the last ``=``, ``:=`` or ``=>`` before the match (not ``==``/``!=``/``<=``).
+# shortcut: first line only; a target on an earlier line of a wrapped statement is missed.
+ASSIGNMENT_TARGET = re.compile(
+    r"(?P<target>[A-Za-z_$][\w$]*(?:(?:\.|->|::)[A-Za-z_$][\w$]*|\[['\"]?[\w-]+['\"]?\])*)['\"]?"
+    r"\s*(?::=|=>|(?<![=!<>])=(?!=))[^=]*$"
+)
 KNOWN_MODES = {
     "ECB", "CBC", "CFB", "CFB8", "OFB", "CTR", "GCM", "CCM", "EAX", "SIV", "OCB",
     "GCM-SIV", "XTS",
@@ -359,7 +379,33 @@ def parameter_evidence(result: dict, algorithm: str) -> dict:
     )
     if protocol:
         evidence["protocol"] = protocol
+
+    output_bits = _integer(metavariable_literal(result, "$OUT_BITS"))
+    output_bytes = _integer(metavariable_literal(result, "$OUT_BYTES"))
+    if output_bits or output_bytes:
+        evidence["output_length_bits"] = output_bits or output_bytes * 8
     return evidence
+
+
+def token_purpose(result: dict) -> str | None:
+    """Purpose of a random value, from the name it is assigned to on the matched line.
+
+    ``session_token = secrets.token_hex(16)``, ``const sessionId = crypto.randomBytes(16)``,
+    ``$this->csrf = bin2hex(random_bytes(16))``, ``'api_key' => random_bytes(32)``.
+    """
+    extra = result.get("extra") or {}
+    bound = (extra.get("metavars") or {}).get("$TARGET")  # rules that match the assignment
+    if isinstance(bound, dict) and isinstance(bound.get("abstract_content"), str):
+        name = bound["abstract_content"]
+    else:
+        lines = str(extra.get("lines") or "").splitlines()
+        before = lines[0][: max(int(result["start"].get("col", 1)) - 1, 0)] if lines else ""
+        target = ASSIGNMENT_TARGET.search(before)
+        if target is None:
+            return None
+        name = target.group("target")
+    name = CAMEL_BOUNDARY.sub("_", name).lower()
+    return next((purpose for pattern, purpose in TOKEN_PURPOSES if pattern.search(name)), None)
 
 
 def _finding_kind(rule_id: str, metadata: dict) -> str:
@@ -427,6 +473,16 @@ def normalize_result(result: dict, workspace: Path | None = None) -> dict:
             if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
                 raise ValueError(f"{rule_id}: metadata {field} must be a positive integer")
             evidence[field] = value
+    if finding["primitive"] == "random":
+        purpose = token_purpose(result)
+        if purpose:
+            evidence["token_purpose"] = purpose
+    if "random_source" in metadata:
+        if metadata["random_source"] not in RANDOM_SOURCES:
+            raise ValueError(
+                f"{rule_id}: metadata random_source must be one of {sorted(RANDOM_SOURCES)}"
+            )
+        evidence["random_source"] = metadata["random_source"]
     if "parameter_set" in metadata:
         evidence.pop("group_order_bits", None)
         static_order = _group_order(evidence["parameter_set"])

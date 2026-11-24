@@ -34,6 +34,7 @@ LANGUAGES = {
 # findings become crypto assets, so a new name here needs a catalog entry first.
 INVENTORY_ALGORITHMS = {
     "RSA", "ECDSA", "ECDH", "X25519", "ED25519", "DH", "AES", "SHA-1", "MD5", "ML-KEM", "ML-DSA",
+    "CSPRNG", "AWS-KMS-RANDOM",
 }
 ASSET_USAGES = {
     "signing", "encryption", "key_establishment", "hash", "mac", "random", "tls", "api",

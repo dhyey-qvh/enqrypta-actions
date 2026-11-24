@@ -1,5 +1,6 @@
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.spec.MLDSAParameterSpec;
 import java.security.spec.MLKEMParameterSpec;
@@ -7,6 +8,8 @@ import javax.crypto.Cipher;
 import javax.crypto.KEM;
 import javax.crypto.KeyAgreement;
 import org.apache.commons.codec.digest.DigestUtils;
+import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.model.GenerateRandomRequest;
 
 class Inventory {
     static final String TRANSFORMATION = "AES/GCM/NoPadding";
@@ -105,5 +108,25 @@ class Inventory {
         Object dsaSpec = MLDSAParameterSpec.ml_dsa_87;
         // ok: enqrypta.crypto.java.ml-dsa
         Signature.getInstance("SLH-DSA-SHA2-128S");
+    }
+}
+
+class RandomSources {
+    byte[] tokens(KmsClient kms) throws Exception {
+        // ruleid: enqrypta.crypto.java.csprng
+        SecureRandom random = new SecureRandom();
+        // ruleid: enqrypta.crypto.java.csprng
+        SecureRandom strong = SecureRandom.getInstanceStrong();
+        // ruleid: enqrypta.crypto.java.csprng
+        SecureRandom drbg = SecureRandom.getInstance("DRBG");
+        // ok: enqrypta.crypto.java.csprng
+        java.util.Random jitter = new java.util.Random();
+        // ruleid: enqrypta.crypto.java.aws-kms-generate-random
+        GenerateRandomRequest request = GenerateRandomRequest.builder().numberOfBytes(32).build();
+        // ruleid: enqrypta.crypto.java.aws-kms-generate-random
+        byte[] apiKey = kms.generateRandom(r -> r.numberOfBytes(32)).plaintext().asByteArray();
+        // ok: enqrypta.crypto.java.aws-kms-generate-random
+        kms.listKeys();
+        return apiKey;
     }
 }

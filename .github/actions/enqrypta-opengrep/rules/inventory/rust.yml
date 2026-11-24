@@ -276,3 +276,55 @@ rules:
       usage: signing
       confidence: 0.95
       language: rust
+
+  - id: enqrypta.crypto.rust.csprng
+    languages: [rust]
+    severity: INFO
+    message: Operating-system random generator inventoried.
+    pattern-either:
+      - pattern: OsRng.fill_bytes(...)
+      - pattern: OsRng.try_fill_bytes(...)
+      - pattern: OsRng.next_u32()
+      - pattern: OsRng.next_u64()
+      - pattern: getrandom::fill(...)
+      - pattern: getrandom::getrandom(...)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.csprng
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.95
+      language: rust
+      random_source: os
+
+  - id: enqrypta.crypto.rust.csprng-thread-rng
+    languages: [rust]
+    severity: INFO
+    message: rand thread-local CSPRNG (ChaCha seeded from the OS) inventoried.
+    pattern-either:
+      - pattern: rand::rng()
+      - pattern: rand::thread_rng()
+      - pattern: rand::random::<$T>()
+      - pattern: rand::random()
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.csprng-thread-rng
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.9
+      language: rust
+      random_source: library
+
+  - id: enqrypta.crypto.rust.aws-kms-generate-random
+    languages: [rust]
+    severity: INFO
+    message: AWS KMS GenerateRandom (FIPS 140-3 validated HSM) inventoried.
+    pattern: $KMS.generate_random().number_of_bytes($OUT_BYTES)
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.rust.aws-kms-generate-random
+      algorithm: AWS-KMS-RANDOM
+      primitive: random
+      usage: random
+      confidence: 0.9
+      language: rust
+      random_source: aws-kms

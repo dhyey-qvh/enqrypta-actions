@@ -250,3 +250,29 @@ rules:
       confidence: 0.95
       language: rust
       parameters: [protocol]
+
+  - id: enqrypta.misuse.rust.short-random-token
+    languages: [rust]
+    severity: ERROR
+    message: A random token shorter than 16 bytes (128 bits) can be guessed; generate at least 16 bytes, 32 for long-lived tokens.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              let mut $TARGET = [0u8; $OUT_BYTES];
+              ...
+              $RNG.fill_bytes(&mut $TARGET);
+          - pattern: |
+              let mut $TARGET = [0u8; $OUT_BYTES];
+              ...
+              getrandom::fill(&mut $TARGET)
+      - metavariable-regex: {metavariable: $TARGET, regex: '(?i).*(token|session|(^|_)sid$|csrf|xsrf|otp|api_?key|secret|reset|verif)'}
+      - metavariable-comparison: {metavariable: $OUT_BYTES, comparison: $OUT_BYTES < 16}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.rust.short-random-token
+      finding_kind: misuse
+      cwe: CWE-331
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: rust

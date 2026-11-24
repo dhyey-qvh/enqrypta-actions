@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"context"
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
@@ -15,6 +16,8 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
@@ -129,4 +132,19 @@ func postQuantum(seed []byte) {
 	mldsa65.GenerateKey(rand.Reader)
 	// ok: enqrypta.crypto.go.ml-dsa
 	mldsa65.Scheme()
+}
+
+func randomSources(ctx context.Context, client *kms.Client) {
+	sessionToken := make([]byte, 32)
+	// ruleid: enqrypta.crypto.go.csprng
+	rand.Read(sessionToken)
+	// ruleid: enqrypta.crypto.go.csprng
+	apiKey := rand.Text()
+	// ok: enqrypta.crypto.go.csprng
+	_ = rand.Reader
+	// ruleid: enqrypta.crypto.go.aws-kms-generate-random
+	out, _ := client.GenerateRandom(ctx, &kms.GenerateRandomInput{NumberOfBytes: aws.Int32(32)})
+	// ok: enqrypta.crypto.go.aws-kms-generate-random
+	client.ListKeys(ctx, &kms.ListKeysInput{})
+	_, _ = apiKey, out
 }

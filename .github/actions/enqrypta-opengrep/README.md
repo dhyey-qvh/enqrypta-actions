@@ -61,6 +61,21 @@ accepts `3.0` is deployed; the release order is in the repository README. Schema
 
 The payload adds `rules_digest`, a SHA-256 over the rule files used.
 
+### Schema 3.1 (v10): random-number evidence
+
+The v10 source emits schema `3.1`, which adds three optional
+`assessment_evidence` fields for random-number findings:
+
+- `random_source`: `os`, `library`, `aws-kms` (from rule metadata; `aws-cloudhsm`
+  and `unknown` are accepted but no rule sets them yet).
+- `output_length_bits`: requested length, from a literal `$OUT_BYTES` / `$OUT_BITS`.
+- `token_purpose`: `session_token`, `csrf`, `api_key`, `password_reset`, `nonce`,
+  `otp` or `other`, read from the name the value is assigned to (a bound
+  `$TARGET`, else the assignment on the matched line). Set only for findings with
+  `primitive: random`; values not assigned to a secret-like name get none.
+
+Tag v10 only after the API that accepts `3.1` is deployed.
+
 ### Rule packs
 
 `main` scans with every rule file under `rules/`:
@@ -68,17 +83,34 @@ The payload adds `rules_digest`, a SHA-256 over the rule files used.
 | Path | What it covers |
 |---|---|
 | `rules/inventory/<language>.yml` | Crypto API calls in Java, Python, Go, JS/TS, Rust and PHP: algorithm, purpose (`usage`) and parameters |
-| `rules/misuse/<language>.yml` | Weak ciphers (DES, 3DES, RC4, Blowfish), ECB, MD5/SHA-1 in signatures or MACs, non-crypto RNG for secrets, constant IVs and keys, disabled TLS verification, TLS below 1.2. Each carries a CWE. PHP adds more (below) |
+| `rules/misuse/<language>.yml` | Weak ciphers (DES, 3DES, RC4, Blowfish), ECB, MD5/SHA-1 in signatures or MACs, non-crypto RNG for secrets, random tokens under 16 bytes, constant IVs and keys, disabled TLS verification, TLS below 1.2. Each carries a CWE. PHP adds more (below) |
 | `rules/artifacts/generic.yml` | PEM blocks, OpenSSH public keys and JWTs in any file, classified by the classification API (below) |
 | `rules/fallback/generic.yml` | The v1–v6 name-based regex rules, unchanged IDs, for other source and config files (Kotlin, C#, C/C++, YAML, ...). Files of the six languages are excluded, as are prose and lockfiles (`*.md`, `*.txt`, `*.lock`, ...), where an algorithm name is a mention, not a use |
 
 Inventory rules only emit algorithms the API's catalog classifies (RSA, ECDSA,
-ECDH, X25519, Ed25519, DH, AES, SHA-1, MD5, ML-KEM, ML-DSA), because inventory
+ECDH, X25519, Ed25519, DH, AES, SHA-1, MD5, ML-KEM, ML-DSA, CSPRNG,
+AWS-KMS-RANDOM), because inventory
 findings become crypto assets. Purpose comes from the call: RSA key generation
 alone is `usage: unknown`, RSA `encrypt` is `encryption`, RSA `sign` is
 `signing`.
 
+Random-number rules (all six languages):
+
+| Rule | What |
+|---|---|
+| `enqrypta.crypto.<lang>.csprng` | Secure generators: Python `secrets`, `os.urandom`, `SystemRandom`; Node `crypto.randomBytes`/`randomInt`/`randomUUID`, `getRandomValues`; Java `SecureRandom`; Go `crypto/rand`; PHP `random_bytes`/`random_int`/`sodium_randombytes_buf` (`csprng-openssl`: `openssl_random_pseudo_bytes`); Rust `OsRng`, `getrandom` (`csprng-thread-rng`: `rand::rng()`, `thread_rng()`, `rand::random()`). Algorithm `CSPRNG` |
+| `enqrypta.crypto.<lang>.aws-kms-generate-random` | AWS KMS `GenerateRandom` through boto3, JS SDK v2/v3, Java SDK v1/v2, Go SDK v2, PHP and Rust SDKs. Algorithm `AWS-KMS-RANDOM`, `random_source: aws-kms` |
+| `enqrypta.misuse.<lang>.short-random-token` | CWE-331: under 16 bytes requested for a value assigned to a token-like name (`token`, `session`, `sid`, `csrf`, `otp`, `api_key`, `secret`, `reset`, `verif`). Python `secrets.token_hex`/`token_urlsafe` are flagged under 16 bytes whatever the name; `token_bytes(12)` for a nonce is not |
+
 Known limits:
+
+- Random-token length is read from literals only; Go `make([]byte, n)` and
+  Rust `[0u8; N]` buffers are recognised only when declared and filled in the
+  same function. `token_purpose` reads the first line of a wrapped statement.
+- `generate_random` / `generateRandom` are matched by method name with a
+  `NumberOfBytes` argument (Python, PHP, JS v2) or by the request type (JS v3,
+  Java, Go, Rust); a KMS call routed to a CloudHSM custom key store is reported
+  as `aws-kms`.
 
 - JCA algorithm names (`Cipher.getInstance`) are matched on string literals; an
   algorithm passed through a variable is not detected at that call.
@@ -149,13 +181,15 @@ these metavariables:
 | `$TAG_BITS` / `$TAG_BYTES` | `tag_length_bits` |
 | `$PROTOCOL` | `protocol` (normalized, e.g. `TLS 1.2`) |
 | `$JWS_ALG` | `parameter_set`, `group_order_bits` from a JWS ECDSA algorithm (`ES384` → `P-384`, lcobucci `Ecdsa\Sha512` → `P-521`) |
+| `$OUT_BYTES` / `$OUT_BITS` | `output_length_bits` (random-number rules) |
+| `$TARGET` | `token_purpose` (random-number rules that match the assignment) |
 
 `metadata.parameters` lists the evidence fields a rule expects (any of
 `key_size_bits`, `group_order_bits`, `parameter_set`, `mode`, `padding`,
-`iv_length_bits`, `tag_length_bits`, `protocol`); a declared field the match
+`iv_length_bits`, `tag_length_bits`, `protocol`, `output_length_bits`); a declared field the match
 does not resolve is reported in `unresolved_parameters`. Static evidence for
 APIs that fix a value may be set in metadata: `iv_generation`, `protocol`,
-`mode`, `padding`, `parameter_set`, and integer `key_size_bits`,
+`mode`, `padding`, `parameter_set`, `random_source`, and integer `key_size_bits`,
 `tag_length_bits`, `iv_length_bits`. Metadata overrides values guessed from the
 matched name.
 

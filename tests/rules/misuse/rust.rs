@@ -87,3 +87,18 @@ fn tls(builder: ClientBuilder, ctx: &mut SslContextBuilder, config: ClientConfig
     // ok: enqrypta.misuse.rust.weak-tls-version
     ctx.set_min_proto_version(Some(SslVersion::TLS1_2));
 }
+
+fn short_tokens() {
+    // ruleid: enqrypta.misuse.rust.short-random-token
+    let mut session_token = [0u8; 8];
+    OsRng.fill_bytes(&mut session_token);
+    // ok: enqrypta.misuse.rust.short-random-token
+    let mut csrf_token = [0u8; 32];
+    OsRng.fill_bytes(&mut csrf_token);
+    // ruleid: enqrypta.misuse.rust.short-random-token
+    let mut reset_code = [0u8; 6];
+    getrandom::fill(&mut reset_code).unwrap();
+    // ok: enqrypta.misuse.rust.short-random-token
+    let mut salt = [0u8; 8];
+    OsRng.fill_bytes(&mut salt);
+}

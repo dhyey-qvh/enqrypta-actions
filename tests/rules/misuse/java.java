@@ -141,3 +141,17 @@ class AllowAll implements HostnameVerifier {
     // ruleid: enqrypta.misuse.java.tls-verify-disabled
     public boolean verify(String hostname, SSLSession session) { return true; }
 }
+
+class ShortTokens {
+    void tokens(SecureRandom random) {
+        // ruleid: enqrypta.misuse.java.short-random-token
+        byte[] sessionToken = new byte[8];
+        random.nextBytes(sessionToken);
+        // ok: enqrypta.misuse.java.short-random-token
+        byte[] csrfToken = new byte[32];
+        random.nextBytes(csrfToken);
+        // ok: enqrypta.misuse.java.short-random-token
+        byte[] salt = new byte[8];
+        random.nextBytes(salt);
+    }
+}

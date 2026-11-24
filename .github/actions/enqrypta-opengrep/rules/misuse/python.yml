@@ -258,3 +258,31 @@ rules:
       confidence: 0.95
       language: python
       parameters: [protocol]
+
+  - id: enqrypta.misuse.python.short-random-token
+    languages: [python]
+    severity: ERROR
+    message: A random token shorter than 16 bytes (128 bits) can be guessed; generate at least 16 bytes, 32 for long-lived tokens.
+    patterns:
+      - pattern-either:
+          # Text tokens are never IVs or nonces, so any short length is a finding;
+          # token_bytes(12) is a valid GCM nonce and needs a token-like name.
+          - pattern: secrets.token_hex($OUT_BYTES)
+          - pattern: secrets.token_urlsafe($OUT_BYTES)
+          - patterns:
+              - pattern-inside: $TARGET = ...
+              - metavariable-regex: {metavariable: $TARGET, regex: '(?i).*(token|session|(^|_)sid$|csrf|xsrf|otp|api_?key|secret|reset|verif)'}
+              - pattern-either:
+                  - pattern: os.urandom($OUT_BYTES)
+                  - pattern: secrets.token_bytes($OUT_BYTES)
+                  - pattern: $KMS.generate_random(..., NumberOfBytes=$OUT_BYTES, ...)
+      - metavariable-comparison: {metavariable: $OUT_BYTES, comparison: $OUT_BYTES < 16}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.python.short-random-token
+      finding_kind: misuse
+      cwe: CWE-331
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: python

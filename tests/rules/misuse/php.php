@@ -372,3 +372,20 @@ class Verification
         hash_pbkdf2('sha256', $password, random_bytes(16), 600000);
     }
 }
+
+class ShortTokens
+{
+    public function tokens()
+    {
+        // ruleid: enqrypta.misuse.php.short-random-token
+        $this->csrfToken = bin2hex(random_bytes(8));
+        // ok: enqrypta.misuse.php.short-random-token
+        $sessionToken = bin2hex(random_bytes(32));
+        // ruleid: enqrypta.misuse.php.short-random-token
+        $resetToken = openssl_random_pseudo_bytes(10);
+        // ok: enqrypta.misuse.php.short-random-token
+        $salt = random_bytes(8);
+        return [$sessionToken, $resetToken, $salt];
+    }
+}
+

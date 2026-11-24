@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import os
 import random
 import secrets
 import ssl
@@ -150,3 +151,23 @@ def tls_versions():
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     # ok: enqrypta.misuse.python.weak-tls-version
     ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+
+def short_tokens(kms):
+    # ruleid: enqrypta.misuse.python.short-random-token
+    reset = secrets.token_hex(8)
+    # ok: enqrypta.misuse.python.short-random-token
+    session_token = secrets.token_hex(16)
+    # ruleid: enqrypta.misuse.python.short-random-token
+    session_id = os.urandom(8).hex()
+    # ok: enqrypta.misuse.python.short-random-token
+    iv_seed = os.urandom(8)
+    # ok: enqrypta.misuse.python.short-random-token
+    nonce = secrets.token_bytes(12)
+    # ruleid: enqrypta.misuse.python.short-random-token
+    csrf = secrets.token_bytes(8)
+    # ruleid: enqrypta.misuse.python.short-random-token
+    api_key = kms.generate_random(NumberOfBytes=12)["Plaintext"]
+    # ok: enqrypta.misuse.python.short-random-token
+    otp_secret = kms.generate_random(NumberOfBytes=32)["Plaintext"]
+    return reset, session_token, session_id, iv_seed, nonce, csrf, api_key, otp_secret

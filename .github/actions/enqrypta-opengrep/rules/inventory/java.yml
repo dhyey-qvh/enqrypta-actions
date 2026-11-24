@@ -252,3 +252,44 @@ rules:
       usage: signing
       confidence: 0.95
       language: java
+
+  - id: enqrypta.crypto.java.csprng
+    languages: [java]
+    severity: INFO
+    message: Cryptographically secure random generator inventoried.
+    pattern-either:
+      - pattern: new SecureRandom(...)
+      - pattern: new java.security.SecureRandom(...)
+      - pattern: SecureRandom.getInstance(...)
+      - pattern: SecureRandom.getInstanceStrong()
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.csprng
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.95
+      language: java
+      random_source: library
+
+  - id: enqrypta.crypto.java.aws-kms-generate-random
+    languages: [java]
+    severity: INFO
+    message: AWS KMS GenerateRandom (FIPS 140-3 validated HSM) inventoried.
+    pattern-either:
+      - pattern: GenerateRandomRequest.builder().numberOfBytes($OUT_BYTES)
+      - patterns:
+          - pattern: GenerateRandomRequest.builder()
+          - pattern-not-inside: GenerateRandomRequest.builder().numberOfBytes($N)
+      - pattern: new GenerateRandomRequest().withNumberOfBytes($OUT_BYTES)
+      - patterns:
+          - pattern: new GenerateRandomRequest()
+          - pattern-not-inside: new GenerateRandomRequest().withNumberOfBytes($N)
+      - pattern: $KMS.generateRandom(($R) -> $R.numberOfBytes($OUT_BYTES))
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.java.aws-kms-generate-random
+      algorithm: AWS-KMS-RANDOM
+      primitive: random
+      usage: random
+      confidence: 0.9
+      language: java
+      random_source: aws-kms

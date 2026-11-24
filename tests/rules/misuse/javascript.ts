@@ -92,3 +92,15 @@ function tlsOptions(): void {
   // ok: enqrypta.misuse.javascript.weak-tls-version
   tls.connect({ host: "example.com", minVersion: "TLSv1.2" });
 }
+
+export function shortTokens() {
+  // ruleid: enqrypta.misuse.javascript.short-random-token
+  const sessionToken = crypto.randomBytes(8).toString("hex");
+  // ok: enqrypta.misuse.javascript.short-random-token
+  const csrfToken = crypto.randomBytes(32).toString("hex");
+  // ruleid: enqrypta.misuse.javascript.short-random-token
+  const resetCode = crypto.getRandomValues(new Uint8Array(6));
+  // ok: enqrypta.misuse.javascript.short-random-token
+  const salt = crypto.randomBytes(8);
+  return [sessionToken, csrfToken, resetCode, salt];
+}

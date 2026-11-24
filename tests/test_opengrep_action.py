@@ -125,7 +125,7 @@ def test_main_writes_observation_only_schema_3_payload(monkeypatch, tmp_path):
 
     payload = json.loads(output_path.read_text())
     assert set(payload) == {"schema_version", "scanner_version", "findings"}
-    assert payload["schema_version"] == "3.0"
+    assert payload["schema_version"] == "3.1"
     assert payload["findings"][0]["algorithm"] == "AES"
     assert payload["findings"][0]["assessment_evidence"]["parameter_set"] == "AES-256"
     assert payload["findings"][0]["finding_kind"] == "inventory"
@@ -673,3 +673,70 @@ def test_jws_ecdsa_algorithm_resolves_the_curve(tmp_path):
     )
     evidence = normalizer.normalize_result(raw, tmp_path)["assessment_evidence"]
     assert "parameter_set" not in evidence
+
+
+def random_result(line: str, call: str, **metadata) -> dict:
+    raw = result("CSPRNG", line, start_col=line.index(call) + 1)
+    return with_metadata(raw, primitive="random", usage="random", **metadata)
+
+
+@pytest.mark.parametrize(
+    ("line", "call", "purpose"),
+    [
+        ("session_token = secrets.token_hex(16)", "secrets", "session_token"),
+        ("const sessionId = crypto.randomBytes(16).toString('hex');", "crypto", "session_token"),
+        ("$this->csrf = bin2hex(random_bytes(16));", "bin2hex", "csrf"),
+        ("    'api_key' => random_bytes(32),", "random_bytes", "api_key"),
+        ("self.reset_code = secrets.token_urlsafe(32)", "secrets", "password_reset"),
+        ("let mut nonce = [0u8; 12];", "[0u8", "nonce"),
+        ("user.otp = random_int(0, 999999)", "random_int", "otp"),
+        ('session["id"] = os.urandom(16)', "os.", "session_token"),
+        ("f(token=secrets.token_hex(16))", "secrets", "other"),
+        ("x = base64(os.urandom(32))", "os.", None),
+        ("if token == secrets.token_hex(8):", "secrets", None),
+        ("out, err := client.GenerateRandom(ctx, in)", "client", None),
+        ("print(secrets.token_hex(32))", "secrets", None),
+    ],
+)
+def test_token_purpose_comes_from_the_assigned_name(tmp_path, line, call, purpose):
+    normalizer = load_script("normalize")
+    finding = normalizer.normalize_result(random_result(line, call), tmp_path)
+    assert finding["assessment_evidence"].get("token_purpose") == purpose
+
+
+def test_token_purpose_is_only_set_for_random_findings(tmp_path):
+    normalizer = load_script("normalize")
+    raw = result("RSA", "session_key = rsa.generate_private_key(65537, 2048)", start_col=15)
+    assert "token_purpose" not in normalizer.normalize_result(raw, tmp_path)["assessment_evidence"]
+
+
+@pytest.mark.parametrize(
+    ("metavars", "bits"),
+    [({"OUT_BYTES": "32"}, 256), ({"OUT_BITS": "128"}, 128), ({"OUT_BYTES": "n"}, None)],
+)
+def test_random_output_length_and_source(tmp_path, metavars, bits):
+    normalizer = load_script("normalize")
+    raw = with_metavars(
+        random_result(
+            "token = kms.generate_random(NumberOfBytes=32)", "kms", random_source="aws-kms"
+        ),
+        **metavars,
+    )
+    evidence = normalizer.normalize_result(raw, tmp_path)["assessment_evidence"]
+    assert evidence["random_source"] == "aws-kms"
+    assert evidence.get("output_length_bits") == bits
+
+
+def test_unknown_random_source_is_a_rule_error(tmp_path):
+    normalizer = load_script("normalize")
+    with pytest.raises(ValueError, match="random_source"):
+        normalizer.normalize_result(random_result("x = f()", "f", random_source="dice"), tmp_path)
+
+
+def test_token_purpose_prefers_a_bound_target(tmp_path):
+    normalizer = load_script("normalize")
+    raw = with_metavars(
+        random_result("byte[] sessionToken = new byte[8];", "byte"), TARGET="sessionToken"
+    )
+    finding = normalizer.normalize_result(raw, tmp_path)
+    assert finding["assessment_evidence"]["token_purpose"] == "session_token"

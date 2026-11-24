@@ -701,3 +701,61 @@ rules:
       usage: hash
       confidence: 0.95
       language: php
+
+  - id: enqrypta.crypto.php.csprng
+    languages: [php]
+    severity: INFO
+    message: Cryptographically secure random generator inventoried.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - patterns:
+          - pattern: $FN($OUT_BYTES)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(random_bytes|sodium_randombytes_buf)$'}
+      - patterns:
+          - pattern: $FN(...)
+          - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?random_int$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.csprng
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.95
+      language: php
+      random_source: os
+
+  - id: enqrypta.crypto.php.csprng-openssl
+    languages: [php]
+    severity: INFO
+    message: OpenSSL random generator inventoried.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern: $FN($OUT_BYTES, ...)
+      - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?openssl_random_pseudo_bytes$'}
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.csprng-openssl
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.95
+      language: php
+      random_source: library
+
+  - id: enqrypta.crypto.php.aws-kms-generate-random
+    languages: [php]
+    severity: INFO
+    message: AWS KMS GenerateRandom (FIPS 140-3 validated HSM) inventoried.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    pattern-either:
+      - pattern: "$KMS->generateRandom([..., 'NumberOfBytes' => $OUT_BYTES, ...])"
+      - pattern: "$KMS->generateRandomAsync([..., 'NumberOfBytes' => $OUT_BYTES, ...])"
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.php.aws-kms-generate-random
+      algorithm: AWS-KMS-RANDOM
+      primitive: random
+      usage: random
+      confidence: 0.9
+      language: php
+      random_source: aws-kms

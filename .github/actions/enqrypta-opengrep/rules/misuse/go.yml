@@ -210,3 +210,30 @@ rules:
       confidence: 0.95
       language: go
       parameters: [protocol]
+
+  - id: enqrypta.misuse.go.short-random-token
+    languages: [go]
+    severity: ERROR
+    message: A random token shorter than 16 bytes (128 bits) can be guessed; generate at least 16 bytes, 32 for long-lived tokens.
+    # Any rand package: a short token is guessable whichever generator fills it.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $TARGET := make([]byte, $OUT_BYTES)
+              ...
+              rand.Read($TARGET)
+          - pattern: |
+              $TARGET = make([]byte, $OUT_BYTES)
+              ...
+              rand.Read($TARGET)
+      - metavariable-regex: {metavariable: $TARGET, regex: '(?i).*(token|session|(^|_)sid$|csrf|xsrf|otp|api_?key|secret|reset|verif)'}
+      - metavariable-comparison: {metavariable: $OUT_BYTES, comparison: $OUT_BYTES < 16}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.go.short-random-token
+      finding_kind: misuse
+      cwe: CWE-331
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: go
