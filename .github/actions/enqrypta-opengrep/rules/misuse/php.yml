@@ -901,3 +901,24 @@ rules:
       usage: hash
       confidence: 0.85
       language: php
+
+  - id: enqrypta.misuse.php.short-random-token
+    languages: [php]
+    severity: ERROR
+    message: A random token shorter than 16 bytes (128 bits) can be guessed; generate at least 16 bytes, 32 for long-lived tokens.
+    paths:
+      exclude: ["wp-includes/", "wp-admin/", "*.blade.php"]
+    patterns:
+      - pattern: $TARGET = <... $FN($OUT_BYTES, ...) ...>;
+      - metavariable-regex: {metavariable: $TARGET, regex: '(?i).*(token|session|(^|_)sid$|csrf|xsrf|otp|api_?key|secret|reset|verif)'}
+      - metavariable-regex: {metavariable: $FN, regex: '(?i)^\\?(random_bytes|openssl_random_pseudo_bytes|sodium_randombytes_buf)$'}
+      - metavariable-comparison: {metavariable: $OUT_BYTES, comparison: $OUT_BYTES < 16}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.php.short-random-token
+      finding_kind: misuse
+      cwe: CWE-331
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: php

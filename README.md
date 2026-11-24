@@ -82,6 +82,25 @@ Release order:
 2. In the API deployment, append v9 and its commit SHA to both trust lists and
    set `GITHUB_APP_WORKFLOW_REF` to v9. Repositories move to v9 on reinstall.
 
+## v10: random-number rules and schema 3.1
+
+`enqrypta-opengrep-workflow-v10` adds random-number rules to every language pack
+(see the action README): `enqrypta.crypto.<lang>.csprng` and
+`enqrypta.crypto.<lang>.aws-kms-generate-random` inventory, and
+`enqrypta.misuse.<lang>.short-random-token` (CWE-331). The payload moves to
+findings schema `3.1`, which adds optional `random_source`, `output_length_bits`
+and `token_purpose` to `assessment_evidence`. Inputs and outputs are unchanged.
+The first v10 scan adds `CSPRNG` and `AWS-KMS-RANDOM` assets; lineage records the
+rule change as a reclassification, not a code change.
+
+Release order:
+
+1. Deploy the API that accepts schema `3.1` (it keeps accepting `2.0` and `3.0`
+   from v5–v9). An API without it rejects every v10 payload.
+2. Tag the merged commit `enqrypta-opengrep-workflow-v10`. Never move v1–v9.
+3. In the API deployment, append v10 and its commit SHA to both trust lists and
+   set `GITHUB_APP_WORKFLOW_REF` to v10. Repositories move to v10 on reinstall.
+
 For correlated launches, the API allows 15 minutes for findings delivery after an
 exact successful GitHub run's `updated_at`, falling back to 90 minutes from launch
 creation when no execution callback is received. Expired delivery returns

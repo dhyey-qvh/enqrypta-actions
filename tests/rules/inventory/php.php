@@ -294,3 +294,26 @@ class Profile extends Model
         return ['options' => \Illuminate\Database\Eloquent\Casts\AsEncryptedArrayObject::class];
     }
 }
+
+class RandomSources
+{
+    public function tokens($kms)
+    {
+        // ruleid: enqrypta.crypto.php.csprng
+        $sessionToken = bin2hex(random_bytes(32));
+        // ruleid: enqrypta.crypto.php.csprng
+        $otp = \random_int(0, 999999);
+        // ok: enqrypta.crypto.php.csprng
+        $jitter = mt_rand();
+        // ruleid: enqrypta.crypto.php.csprng-openssl
+        $nonce = openssl_random_pseudo_bytes(12);
+        // ok: enqrypta.crypto.php.csprng-openssl
+        $ivLength = openssl_cipher_iv_length('aes-256-gcm');
+        // ruleid: enqrypta.crypto.php.aws-kms-generate-random
+        $apiKey = $kms->generateRandom(['NumberOfBytes' => 32])['Plaintext'];
+        // ok: enqrypta.crypto.php.aws-kms-generate-random
+        $kms->listKeys([]);
+        return [$sessionToken, $otp, $jitter, $nonce, $ivLength, $apiKey];
+    }
+}
+

@@ -257,3 +257,26 @@ rules:
       confidence: 0.95
       language: javascript
       parameters: [protocol]
+
+  - id: enqrypta.misuse.javascript.short-random-token
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: A random token shorter than 16 bytes (128 bits) can be guessed; generate at least 16 bytes, 32 for long-lived tokens.
+    patterns:
+      - pattern-inside: $TARGET = ...
+      - metavariable-regex: {metavariable: $TARGET, regex: '(?i).*(token|session|(^|_)sid$|csrf|xsrf|otp|api_?key|secret|reset|verif)'}
+      - pattern-either:
+          - pattern: $CRYPTO.randomBytes($OUT_BYTES, ...)
+          - pattern: randomBytes($OUT_BYTES, ...)
+          - pattern: $CRYPTO.getRandomValues(new Uint8Array($OUT_BYTES))
+          - pattern: 'new GenerateRandomCommand({..., NumberOfBytes: $OUT_BYTES, ...})'
+      - metavariable-comparison: {metavariable: $OUT_BYTES, comparison: $OUT_BYTES < 16}
+    metadata:
+      enqrypta_rule_id: enqrypta.misuse.javascript.short-random-token
+      finding_kind: misuse
+      cwe: CWE-331
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: javascript

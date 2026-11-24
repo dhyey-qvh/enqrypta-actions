@@ -98,3 +98,20 @@ function digests(data) {
   // ok: enqrypta.crypto.javascript.md5
   crypto.createHash("sha512");
 }
+
+async function randomSources(kms, res) {
+  // ruleid: enqrypta.crypto.javascript.csprng
+  const sessionId = crypto.randomBytes(32).toString("hex");
+  // ruleid: enqrypta.crypto.javascript.csprng
+  const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
+  // ruleid: enqrypta.crypto.javascript.csprng
+  const requestId = crypto.randomUUID();
+  // ok: enqrypta.crypto.javascript.csprng
+  const jitter = Math.random();
+  // ruleid: enqrypta.crypto.javascript.aws-kms-generate-random
+  const out = await kms.send(new GenerateRandomCommand({ NumberOfBytes: 32 }));
+  // ok: enqrypta.crypto.javascript.aws-kms-generate-random
+  await kms.send(new GenerateDataKeyCommand({ KeyId: "alias/app", KeySpec: "AES_256" }));
+  res.cookie("sid", sessionId);
+  return [nonce, requestId, jitter, out];
+}

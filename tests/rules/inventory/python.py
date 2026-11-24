@@ -1,4 +1,7 @@
 import hashlib
+import os
+import random
+import secrets
 
 import oqs
 from Crypto.Cipher import AES, PKCS1_OAEP
@@ -119,3 +122,21 @@ def post_quantum():
     oqs.Signature("ML-DSA-65")
     # ok: enqrypta.crypto.python.ml-dsa
     oqs.Signature("Falcon-512")
+
+
+def random_sources(kms, user):
+    # ruleid: enqrypta.crypto.python.csprng
+    session_token = secrets.token_hex(32)
+    # ruleid: enqrypta.crypto.python.csprng
+    user.csrf = secrets.token_urlsafe()
+    # ruleid: enqrypta.crypto.python.csprng
+    nonce = os.urandom(12)
+    # ruleid: enqrypta.crypto.python.csprng
+    rng = random.SystemRandom()
+    # ok: enqrypta.crypto.python.csprng
+    jitter = random.random()
+    # ruleid: enqrypta.crypto.python.aws-kms-generate-random
+    api_key = kms.generate_random(NumberOfBytes=32)["Plaintext"]
+    # ok: enqrypta.crypto.python.aws-kms-generate-random
+    kms.generate_data_key(KeyId="alias/app", KeySpec="AES_256")
+    return session_token, nonce, rng, jitter, api_key

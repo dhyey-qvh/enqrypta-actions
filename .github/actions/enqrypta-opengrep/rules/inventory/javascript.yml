@@ -273,3 +273,45 @@ rules:
       usage: hash
       confidence: 0.95
       language: javascript
+
+  - id: enqrypta.crypto.javascript.csprng
+    languages: [javascript, typescript]
+    severity: INFO
+    message: Cryptographically secure random generator inventoried.
+    pattern-either:
+      - pattern: $CRYPTO.randomBytes($OUT_BYTES, ...)
+      - pattern: randomBytes($OUT_BYTES, ...)
+      - pattern: $CRYPTO.randomFillSync(...)
+      - pattern: $CRYPTO.randomInt(...)
+      - pattern: $CRYPTO.randomUUID()
+      - pattern: $CRYPTO.getRandomValues(new Uint8Array($OUT_BYTES))
+      - patterns:
+          - pattern: $CRYPTO.getRandomValues($BUFFER)
+          - pattern-not: $CRYPTO.getRandomValues(new Uint8Array($N))
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.javascript.csprng
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.85
+      language: javascript
+      random_source: library
+
+  - id: enqrypta.crypto.javascript.aws-kms-generate-random
+    languages: [javascript, typescript]
+    severity: INFO
+    message: AWS KMS GenerateRandom (FIPS 140-3 validated HSM) inventoried.
+    pattern-either:
+      - pattern: 'new GenerateRandomCommand({..., NumberOfBytes: $OUT_BYTES, ...})'
+      - patterns:
+          - pattern: new GenerateRandomCommand(...)
+          - pattern-not: 'new GenerateRandomCommand({..., NumberOfBytes: $N, ...})'
+      - pattern: '$KMS.generateRandom({..., NumberOfBytes: $OUT_BYTES, ...}, ...)'
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.javascript.aws-kms-generate-random
+      algorithm: AWS-KMS-RANDOM
+      primitive: random
+      usage: random
+      confidence: 0.9
+      language: javascript
+      random_source: aws-kms

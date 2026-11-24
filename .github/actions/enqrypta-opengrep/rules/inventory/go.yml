@@ -265,3 +265,50 @@ rules:
       usage: signing
       confidence: 0.95
       language: go
+
+  - id: enqrypta.crypto.go.csprng
+    languages: [go]
+    severity: INFO
+    message: Cryptographically secure random generator inventoried.
+    # Only in files that import crypto/rand and not math/rand: Go name
+    # resolution cannot tell the two packages apart when both are imported.
+    patterns:
+      - pattern-inside: |
+          import "crypto/rand"
+          ...
+      - pattern-not-inside: |
+          import "math/rand"
+          ...
+      - pattern-not-inside: |
+          import "math/rand/v2"
+          ...
+      - pattern-either:
+          - pattern: rand.Read($BUFFER)
+          - pattern: rand.Int(...)
+          - pattern: rand.Text()
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.csprng
+      algorithm: CSPRNG
+      primitive: random
+      usage: random
+      confidence: 0.9
+      language: go
+      random_source: os
+
+  - id: enqrypta.crypto.go.aws-kms-generate-random
+    languages: [go]
+    severity: INFO
+    message: AWS KMS GenerateRandom (FIPS 140-3 validated HSM) inventoried.
+    pattern-either:
+      - pattern: 'kms.GenerateRandomInput{..., NumberOfBytes: aws.$INT($OUT_BYTES), ...}'
+      - patterns:
+          - pattern: 'kms.GenerateRandomInput{...}'
+          - pattern-not: 'kms.GenerateRandomInput{..., NumberOfBytes: aws.$INT($N), ...}'
+    metadata:
+      enqrypta_rule_id: enqrypta.crypto.go.aws-kms-generate-random
+      algorithm: AWS-KMS-RANDOM
+      primitive: random
+      usage: random
+      confidence: 0.95
+      language: go
+      random_source: aws-kms

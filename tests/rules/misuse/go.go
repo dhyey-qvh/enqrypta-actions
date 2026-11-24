@@ -96,3 +96,15 @@ func randomness(n int) {
 	jitter := rand.Intn(n)
 	_, _ = resetToken, jitter
 }
+
+func shortTokens() {
+	// ruleid: enqrypta.misuse.go.short-random-token
+	sessionToken := make([]byte, 8)
+	// ruleid: enqrypta.misuse.go.insecure-random
+	rand.Read(sessionToken)
+	// ok: enqrypta.misuse.go.short-random-token
+	csrfToken := make([]byte, 32)
+	// ruleid: enqrypta.misuse.go.insecure-random
+	rand.Read(csrfToken)
+	_, _ = sessionToken, csrfToken
+}
